@@ -10,5 +10,13 @@ __version__ = "0.1.0"
 
 from .resource import Resource, CSVResource
 from .package import DataPackage
+from .visualizer import StructureVisualizer
+from .structure_schema import StructurePlan
 
-__all__ = ["Resource", "CSVResource", "DataPackage"]
+__all__ = [
+    'DataPackage',
+    'Resource',
+    'CSVResource',
+    'StructureVisualizer',
+    'StructurePlan',
+]

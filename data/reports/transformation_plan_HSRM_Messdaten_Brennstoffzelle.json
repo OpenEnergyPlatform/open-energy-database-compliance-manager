@@ -2,9 +2,9 @@
   "dataset": "HSRM_Messdaten_Brennstoffzelle",
   "current_state": {
     "total_files": 23,
-    "unique_structures": 8,
-    "invalid_columns": 423,
-    "total_size_mb": 48.72,
+    "unique_structures": 9,
+    "invalid_columns": 442,
+    "total_size_mb": 48.39,
     "total_rows": 59836,
     "avg_rows_per_file": 2601.6
   },
@@ -13,26 +13,26 @@
       "id": "standardize_columns",
       "title": "Standardize Column Names",
       "description": "Convert all column names to DB-compliant format",
-      "impact": "423 columns affected",
+      "impact": "442 columns affected",
       "details": {
         "invalid_columns": [
-          "Cell26 [V]",
-          "Comment",
-          "Cell33 [V]",
-          "Cell06_StdDev [V]",
-          "PressureCoolingCircuitInternalOut_StdDev [bar]",
-          "Cell21 [V]",
-          "Cell22 [V]",
-          "H2ConcentrationAnodeRecirculation_StdDev [%]",
-          "LoadCurrentSet [A]",
-          "VolumeflowHydrogen_StdDev [l/min]"
+          "H2Ratio_StdDev [-]",
+          "TemperatureExternalCoolingCircuitHEXReturn [�",
+          "Luft Soll [l/min]",
+          "Temperatur KFluss innen [°C]",
+          "Cell12_StdDev [V]",
+          "CurrentSecondLoad_StdDev [A]",
+          "PropVentil Bef. soll [%]",
+          "Externe Heizung [an/aus]",
+          "TemperatureOuterCoolingCircuitFlowMeter [°C]",
+          "Cell16_StdDev [V]"
         ],
         "example_mappings": {
-          "Cell26 [V]": "cell26_v",
-          "Comment": "comment",
-          "Cell33 [V]": "cell33_v",
-          "Cell06_StdDev [V]": "cell06_stddev_v",
-          "PressureCoolingCircuitInternalOut_StdDev [bar]": "pressurecoolingcircuitinternalout_stddev_bar"
+          "H2Ratio_StdDev [-]": "h2ratio_stddev",
+          "TemperatureExternalCoolingCircuitHEXReturn [�": "temperatureexternalcoolingcircuithexreturn",
+          "Luft Soll [l/min]": "luft_soll_l_min",
+          "Temperatur KFluss innen [°C]": "temperatur_kfluss_innen_c",
+          "Cell12_StdDev [V]": "cell12_stddev_v"
         }
       }
     },
@@ -93,7 +93,7 @@
       "details": {
         "groups": {
           "Group_6": 6,
-          "Group_7": 11
+          "Group_7": 10
         }
       }
     },
@@ -101,7 +101,7 @@
       "id": "split_by_structure",
       "title": "Split Dataset by Structure",
       "description": "Create sub-packages for each unique file structure",
-      "impact": "8 distinct structures found",
+      "impact": "9 distinct structures found",
       "details": {
         "structures": [
           {
@@ -164,7 +164,7 @@
               "Cell01 [V]",
               "Cell02 [V]"
             ],
-            "file_count": 11
+            "file_count": 10
           },
           {
             "columns": [
@@ -173,6 +173,16 @@
               "DruckAnodenEingang [bar]",
               "DruckDachRuecklauf [bar]",
               "DruckH2Regler [bar]"
+            ],
+            "file_count": 1
+          },
+          {
+            "columns": [
+              "AirCompressorActual [rpm]",
+              "AirCompressorOn/Off [1/0]",
+              "AirCompressorSet [rpm]",
+              "Cell01 [V]",
+              "Cell02 [V]"
             ],
             "file_count": 1
           }
@@ -187,7 +197,7 @@
     "split_by_structure"
   ],
   "resource_details": {
-    "total_size_bytes": 51081508,
+    "total_size_bytes": 50744714,
     "total_rows": 59836,
     "files": [
       {
@@ -296,11 +306,11 @@
       },
       {
         "name": "Humidity_Variation_Raw_Data_48C_190A_78rH_2024_11_25_145951.csv",
-        "size_bytes": 1876811,
-        "size_mb": 1.79,
+        "size_bytes": 1540017,
+        "size_mb": 1.47,
         "rows": 2098,
         "columns": 134,
-        "encoding": "latin-1"
+        "encoding": "utf-8"
       },
       {
         "name": "Humidity_Variation_Raw_Data_48C_50A_0MINrH_2024_11_25_132455.csv",
@@ -375,7 +385,7 @@
         "encoding": "latin-1"
       }
     ],
-    "total_size_mb": 48.72,
+    "total_size_mb": 48.39,
     "avg_rows_per_file": 2601.6
   }
 }

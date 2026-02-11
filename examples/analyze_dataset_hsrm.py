@@ -38,4 +38,28 @@ planner = TransformationPlanner(package)
 planner.print_plan()
 planner.save_plan()
 
-print("\n✅ Analysis complete! Check data/reports/ for detailed plan.")
+# 4. Structure Planning
+print("\n" + "="*70)
+print("STEP 4: STRUCTURE PLANNING")
+print("="*70)
+
+# Assign groups based on structure
+groups = planner.assign_groups_by_structure()
+
+# Create and save structure plan
+plan = planner.create_structure_plan(
+    version="0.1.0",
+    description="Initial analysis of HSRM fuel cell measurement data"
+)
+
+output_files = planner.save_complete_plan(plan)
+
+print("\n" + "="*70)
+print("STRUCTURE PLAN CREATED")
+print("="*70)
+print(f"YAML Plan: {output_files['yaml']}")
+print(f"Visualization: {output_files['visualization']}")
+print("\n📝 Next: Edit the YAML file to define your planned structure!")
+print("="*70 + "\n")
+
+print("\n✅ Complete analysis finished! Check data/reports/, data/plans/, and data/visualizations/")
