@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: : 2022 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
+# SPDX-FileCopyrightText: : 2026 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
 # SPDX-FileCopyrightText: super-repo v0.5.0 <https://github.com/rl-institut/super-repo>
 # SPDX-FileCopyrightText: github gitignore <https://github.com/github/gitignore/blob/main/Python.gitignore>
 # SPDX-License-Identifier: CC0-1.0
@@ -143,3 +143,17 @@ cython_debug/
 
 # PyCharm
 .idea/
+
+# Data files
+data/raw/*
+!data/raw/.gitkeep
+
+# Keep reports for documentation
+!data/reports/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/

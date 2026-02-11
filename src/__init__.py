@@ -1,8 +1,7 @@
-"""Example functions
+"""Open Energy Database Compliance Manager
 
-Examples calculater functionality.
+A Python package for validating and analyzing energy data packages.
 
-SPDX-FileCopyrightText: 2022 Jonas Huber <https://github.com/jh-rli> © Reiner Lemoine Institut
-SPDX-FileCopyrightText: 2022 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
+SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
 SPDX-License-Identifier: MIT
 """
