@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Dict, List, Any
 from .package import DataPackage
 from .analyzer import ColumnAnalyzer, FileNameAnalyzer
+from .visualizer import StructureVisualizer
+from .structure_schema import StructurePlan
 import json
 
 
@@ -21,6 +23,8 @@ class TransformationPlanner:
         self.package = package
         self.col_analyzer = ColumnAnalyzer(package)
         self.file_analyzer = FileNameAnalyzer(package)
+        self.visualizer = StructureVisualizer()
+        self.current_plan: StructurePlan = None
 
     def analyze_and_plan(self) -> Dict[str, Any]:
         """
@@ -169,6 +173,177 @@ class TransformationPlanner:
 
         return recommendations
 
+    def extract_current_structure(self) -> Dict[str, Any]:
+        """
+        Extract current structure from analyzed package.
+
+        Returns:
+            Dictionary representing current data structure
+        """
+        resources = []
+
+        for idx, resource in enumerate(self.package.resources):
+            # Extract fields from column names
+            fields = []
+            if resource.column_names:
+                for col_name in resource.column_names:
+                    fields.append({
+                        'name': col_name,
+                        'type': 'unknown',  # Could be enhanced with type detection
+                        'description': ''
+                    })
+
+            resource_dict = {
+                'name': resource.path.name,
+                'path': str(resource.path),
+                'format': resource.file_type.upper(),
+                'encoding': getattr(resource, 'detected_encoding',
+                                    resource.encoding) if hasattr(resource,
+                                                                  'encoding') else 'utf-8',
+                'rows': resource.n_rows or 0,
+                'columns': resource.n_columns or 0,
+                'fields': fields,
+                'group_number': resource.group_number  # Will be None initially
+            }
+            resources.append(resource_dict)
+
+        return {
+            'name': self.package.dataset_name,
+            'resources': resources
+        }
+
+    def create_structure_plan(
+            self,
+            version: str = "0.1.0",
+            description: str = "Initial structure planning"
+    ) -> StructurePlan:
+        """
+        Create a new structure plan with current state.
+
+        Args:
+            version: Semantic version for this plan
+            description: Description of the planning iteration
+
+        Returns:
+            StructurePlan instance
+        """
+        plan = StructurePlan(
+            dataset_name = self.package.dataset_name,
+            version = version,
+            description = description
+        )
+
+        # Extract and set current structure
+        current_struct = self.extract_current_structure()
+        plan.set_current_structure(
+            package_name = self.package.dataset_name,
+            resources = current_struct['resources']
+        )
+
+        # Initialize planned structure as copy of current
+        # User will modify this manually in YAML
+        plan.set_planned_structure(
+            package_name = self.package.dataset_name,
+            resources = current_struct['resources'].copy()
+        )
+
+        self.current_plan = plan
+        return plan
+
+    def visualize_plan(
+            self,
+            plan: StructurePlan = None,
+            output_path: Path = None
+    ) -> Path:
+        """
+        Create visualization for a structure plan.
+
+        Args:
+            plan: StructurePlan to visualize (uses self.current_plan if None)
+            output_path: Custom output path for PNG
+
+        Returns:
+            Path to generated visualization
+        """
+        if plan is None:
+            if self.current_plan is None:
+                raise ValueError(
+                    "No plan available. Call create_structure_plan() first.")
+            plan = self.current_plan
+
+        return self.visualizer.visualize_comparison(
+            current_structure = plan.current_structure,
+            planned_structure = plan.planned_structure,
+            title = f"{plan.dataset_name} - Structure Planning",
+            version = plan.version
+        )
+
+    def save_complete_plan(
+            self,
+            plan: StructurePlan = None,
+            yaml_path: Path = None,
+            create_visualization: bool = True
+    ) -> Dict[str, Path]:
+        """
+        Save complete planning package (YAML + visualization).
+
+        Args:
+            plan: StructurePlan to save (uses self.current_plan if None)
+            yaml_path: Custom path for YAML file
+            create_visualization: Whether to create PNG visualization
+
+        Returns:
+            Dict with paths to created files
+        """
+        if plan is None:
+            if self.current_plan is None:
+                raise ValueError(
+                    "No plan available. Call create_structure_plan() first.")
+            plan = self.current_plan
+
+        output_files = {}
+
+        # Save YAML
+        yaml_file = plan.save_yaml(yaml_path)
+        output_files['yaml'] = yaml_file
+
+        # Create visualization
+        if create_visualization:
+            viz_file = self.visualize_plan(plan)
+            output_files['visualization'] = viz_file
+
+        return output_files
+
+    def assign_groups_by_structure(self) -> Dict[int, List[str]]:
+        """
+        Automatically assign group_number to resources with identical structure.
+
+        Updates the resource.group_number attribute for all resources.
+
+        Returns:
+            Dict mapping group_number to list of resource names
+        """
+        structure_groups = self.col_analyzer.get_column_structure_groups()
+        groups = {}
+
+        for group_idx, (group_name, group_info) in enumerate(structure_groups.items(),
+                                                             1):
+            groups[group_idx] = group_info['files']
+
+            # Assign group number to resources
+            for filename in group_info['files']:
+                for resource in self.package.resources:
+                    if resource.path.name == filename:
+                        resource.group_number = group_idx
+                        break
+
+        print(
+            f"✅ Assigned {len(groups)} groups to {len(self.package.resources)} resources")
+        for group_id, files in groups.items():
+            print(f"   Group {group_id}: {len(files)} files")
+
+        return groups
+
     def save_plan(self, output_path: Path = None):
         """Save transformation plan to JSON."""
         if output_path is None:
@@ -217,3 +392,8 @@ class TransformationPlanner:
             print(f"  {idx}. {option['title']}")
 
         print(f"\n{'=' * 70}\n")
+
+        print("💡 TIP: Create a structure plan with:")
+        print("   planner.create_structure_plan()")
+        print("   planner.save_complete_plan()")
+        print()

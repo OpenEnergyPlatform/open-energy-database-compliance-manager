@@ -1,5 +1,4 @@
-# SPDX-FileCopyrightText: 2023 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
-# SPDX-FileCopyrightText: 2023 Jonas Huber <https://github.com/jh-rli> © Reiner Lemoine Institut
+# SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
 # SPDX-FileCopyrightText: super-repo v0.5.0 <https://github.com/rl-institut/super-repo>
 # SPDX-License-Identifier: MIT
 
@@ -18,3 +17,6 @@ tox
 twine
 uv
 wheel
+matplotlib
+networkx
+pyyaml

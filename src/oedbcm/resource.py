@@ -27,6 +27,7 @@ class Resource:
         n_rows: Number of data rows (excluding header), populated by analyze_structure()
         n_columns: Number of columns/fields in the file
         column_names: List of column/field names from the file header
+        group_number: Optional group ID for mapping to planned structure
     """
 
     # Regex pattern for valid database column names:
@@ -53,6 +54,9 @@ class Resource:
         self.n_rows: Optional[int] = None
         self.n_columns: Optional[int] = None
         self.column_names: Optional[List[str]] = None
+
+        # Group assignment for planning - populated by planner
+        self.group_number: Optional[int] = None
 
     def _detect_file_type(self) -> str:
         """Extract file extension without dot."""
