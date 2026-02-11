@@ -1,0 +1,381 @@
+{
+  "dataset": "HSRM_Messdaten_Brennstoffzelle",
+  "current_state": {
+    "total_files": 23,
+    "unique_structures": 8,
+    "invalid_columns": 423,
+    "total_size_mb": 48.72,
+    "total_rows": 59836,
+    "avg_rows_per_file": 2601.6
+  },
+  "options": [
+    {
+      "id": "standardize_columns",
+      "title": "Standardize Column Names",
+      "description": "Convert all column names to DB-compliant format",
+      "impact": "423 columns affected",
+      "details": {
+        "invalid_columns": [
+          "Cell26 [V]",
+          "Comment",
+          "Cell33 [V]",
+          "Cell06_StdDev [V]",
+          "PressureCoolingCircuitInternalOut_StdDev [bar]",
+          "Cell21 [V]",
+          "Cell22 [V]",
+          "H2ConcentrationAnodeRecirculation_StdDev [%]",
+          "LoadCurrentSet [A]",
+          "VolumeflowHydrogen_StdDev [l/min]"
+        ],
+        "example_mappings": {
+          "Cell26 [V]": "cell26_v",
+          "Comment": "comment",
+          "Cell33 [V]": "cell33_v",
+          "Cell06_StdDev [V]": "cell06_stddev_v",
+          "PressureCoolingCircuitInternalOut_StdDev [bar]": "pressurecoolingcircuitinternalout_stddev_bar"
+        }
+      }
+    },
+    {
+      "id": "extract_filename_metadata",
+      "title": "Extract Metadata from Filenames",
+      "description": "Add columns based on information in filenames",
+      "impact": "23 files can be enhanced",
+      "details": {
+        "example_extractions": [
+          {
+            "file": "A00_metadata_description_of_measurement_data.csv",
+            "extractable": [
+              "metadata_0",
+              "metadata_1",
+              "metadata_2",
+              "metadata_3",
+              "metadata_4",
+              "metadata_5"
+            ],
+            "values": {
+              "years": [],
+              "dates": []
+            }
+          },
+          {
+            "file": "A260205_component_list.csv",
+            "extractable": [
+              "metadata_0",
+              "metadata_1",
+              "metadata_2"
+            ],
+            "values": {
+              "years": [],
+              "dates": []
+            }
+          },
+          {
+            "file": "A260205_sensor_list.csv",
+            "extractable": [
+              "metadata_0",
+              "metadata_1",
+              "metadata_2"
+            ],
+            "values": {
+              "years": [],
+              "dates": []
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": "harmonize_groups",
+      "title": "Harmonize File Groups",
+      "description": "Process groups of files with identical structure together",
+      "impact": "2 groups identified",
+      "details": {
+        "groups": {
+          "Group_6": 6,
+          "Group_7": 11
+        }
+      }
+    },
+    {
+      "id": "split_by_structure",
+      "title": "Split Dataset by Structure",
+      "description": "Create sub-packages for each unique file structure",
+      "impact": "8 distinct structures found",
+      "details": {
+        "structures": [
+          {
+            "columns": [
+              "Experimental optimization.....",
+              "This",
+              "contains",
+              "data",
+              "dataset"
+            ],
+            "file_count": 1
+          },
+          {
+            "columns": [
+              "Designation according to P&ID",
+              "Explanation",
+              "Manufacturer",
+              "Model",
+              "Pos.-Nr."
+            ],
+            "file_count": 1
+          },
+          {
+            "columns": [
+              "Accuracy",
+              "Comment",
+              "Manufacturer",
+              "Measurement Range",
+              "Measurement variable"
+            ],
+            "file_count": 1
+          },
+          {
+            "columns": [
+              "Header for raw data (48 cells)"
+            ],
+            "file_count": 1
+          },
+          {
+            "columns": [
+              "Header for raw data (48 cells);;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;"
+            ],
+            "file_count": 1
+          },
+          {
+            "columns": [
+              "AirCompressorActual [rpm]",
+              "AirCompressorActual_StdDev [rpm]",
+              "AirCompressorOn/Off [1/0]",
+              "AirCompressorOn/Off_StdDev [1/0]",
+              "AirCompressorSet [rpm]"
+            ],
+            "file_count": 6
+          },
+          {
+            "columns": [
+              "AirCompressorActual [rpm]",
+              "AirCompressorOn/Off [1/0]",
+              "AirCompressorSet [rpm]",
+              "Cell01 [V]",
+              "Cell02 [V]"
+            ],
+            "file_count": 11
+          },
+          {
+            "columns": [
+              "Betriebsstunden [h]",
+              "DruckAnodenAusgang [bar]",
+              "DruckAnodenEingang [bar]",
+              "DruckDachRuecklauf [bar]",
+              "DruckH2Regler [bar]"
+            ],
+            "file_count": 1
+          }
+        ]
+      }
+    }
+  ],
+  "recommendations": [
+    "standardize_columns",
+    "extract_filename_metadata",
+    "harmonize_groups",
+    "split_by_structure"
+  ],
+  "resource_details": {
+    "total_size_bytes": 51081508,
+    "total_rows": 59836,
+    "files": [
+      {
+        "name": "A00_metadata_description_of_measurement_data.csv",
+        "size_bytes": 1254,
+        "size_mb": 0.0,
+        "rows": 9,
+        "columns": 11,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "A260205_component_list.csv",
+        "size_bytes": 3318,
+        "size_mb": 0.0,
+        "rows": 44,
+        "columns": 8,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "A260205_sensor_list.csv",
+        "size_bytes": 4583,
+        "size_mb": 0.0,
+        "rows": 56,
+        "columns": 10,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "header_of_measurement_data.csv",
+        "size_bytes": 12588,
+        "size_mb": 0.01,
+        "rows": 10,
+        "columns": 1,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "header_of_measurement_data_edit.csv",
+        "size_bytes": 15013,
+        "size_mb": 0.01,
+        "rows": 9,
+        "columns": 1,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "Humidity_Variation_Averages_48C_130A_2024_11_25_122404.csv",
+        "size_bytes": 21254,
+        "size_mb": 0.02,
+        "rows": 3,
+        "columns": 268,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "Humidity_Variation_Averages_48C_190A_2024_11_25_143849.csv",
+        "size_bytes": 21279,
+        "size_mb": 0.02,
+        "rows": 3,
+        "columns": 268,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "Humidity_Variation_Averages_48C_50A_2024_11_25.csv",
+        "size_bytes": 21483,
+        "size_mb": 0.02,
+        "rows": 3,
+        "columns": 268,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_130A_12rH_2024_11_25_122404.csv",
+        "size_bytes": 2330706,
+        "size_mb": 2.22,
+        "rows": 2610,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_130A_50rH_2024_11_25_123903.csv",
+        "size_bytes": 2244541,
+        "size_mb": 2.14,
+        "rows": 2516,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_130A_90rH_2024_11_25_125327.csv",
+        "size_bytes": 2744239,
+        "size_mb": 2.62,
+        "rows": 3077,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_190A_0MINrH_2024_11_25_143849.csv",
+        "size_bytes": 1894291,
+        "size_mb": 1.81,
+        "rows": 2117,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_190A_50rH_2024_11_25_144926.csv",
+        "size_bytes": 2067624,
+        "size_mb": 1.97,
+        "rows": 2314,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_190A_78rH_2024_11_25_145951.csv",
+        "size_bytes": 1876811,
+        "size_mb": 1.79,
+        "rows": 2098,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_50A_0MINrH_2024_11_25_132455.csv",
+        "size_bytes": 4147131,
+        "size_mb": 3.96,
+        "rows": 4716,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_50A_50rH_2024_11_25_134840.csv",
+        "size_bytes": 4127686,
+        "size_mb": 3.94,
+        "rows": 4696,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Humidity_Variation_Raw_Data_48C_50A_90rH_2024_11_25_140949.csv",
+        "size_bytes": 2455067,
+        "size_mb": 2.34,
+        "rows": 2794,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Pressure_Variation_Averages_48C_150A_2024_11_21_145908.csv",
+        "size_bytes": 82656,
+        "size_mb": 0.08,
+        "rows": 16,
+        "columns": 268,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "Pressure_Variation_Raw_Data_48C_150A_2024_11_21_145908.csv",
+        "size_bytes": 6366807,
+        "size_mb": 6.07,
+        "rows": 7134,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Temperature_Variation_Averages_48C_130A_241107.csv",
+        "size_bytes": 40697,
+        "size_mb": 0.04,
+        "rows": 7,
+        "columns": 268,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "Temperature_Variation_Averages_48C_85A_241107.csv",
+        "size_bytes": 40400,
+        "size_mb": 0.04,
+        "rows": 7,
+        "columns": 268,
+        "encoding": "utf-8"
+      },
+      {
+        "name": "Temperature_Variation_Raw_Data_48C_130A_2024_11_07_105622.csv",
+        "size_bytes": 10807019,
+        "size_mb": 10.31,
+        "rows": 12165,
+        "columns": 134,
+        "encoding": "latin-1"
+      },
+      {
+        "name": "Temperature_Variation_Raw_Data_48C_85A_2024_11_07_105622.csv",
+        "size_bytes": 9755061,
+        "size_mb": 9.3,
+        "rows": 13432,
+        "columns": 134,
+        "encoding": "latin-1"
+      }
+    ],
+    "total_size_mb": 48.72,
+    "avg_rows_per_file": 2601.6
+  }
+}
