@@ -6,6 +6,7 @@ SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Ludee> © Reiner L
 SPDX-License-Identifier: MIT
 """
 
+from .paths import get_project_paths
 from pathlib import Path
 from typing import Dict, List, Any, Literal
 from enum import Enum

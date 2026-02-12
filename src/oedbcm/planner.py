@@ -9,11 +9,13 @@ SPDX-License-Identifier: MIT
 
 from pathlib import Path
 from typing import Dict, List, Any
+from .paths import get_project_paths
 from .package import DataPackage
 from .analyzer import ColumnAnalyzer, FileNameAnalyzer
 from .visualizer import StructureVisualizer
 from .structure_schema import StructurePlan
 from .file_classifier import ResourceClassifier, ResourceType
+from .digester import MetadataDigester
 import json
 
 
@@ -28,6 +30,8 @@ class TransformationPlanner:
         self.current_plan: StructurePlan = None
         self.classifier = ResourceClassifier()
         self.catalog = None
+        self.digester = MetadataDigester()
+        self.paths = get_project_paths(package.dataset_name)
 
     def analyze_and_plan(self) -> Dict[str, Any]:
         """
@@ -399,9 +403,8 @@ class TransformationPlanner:
             Number of resources classified
         """
         if catalog_path is None:
-            # Try to find catalog in standard location
-            catalog_dir = Path("data/catalogs")
-            catalog_path = catalog_dir / f"{self.package.dataset_name}_catalog.csv"
+            # Use new path structure
+            catalog_path = self.paths.get_catalog_path()
 
             if not catalog_path.exists():
                 print(f"⚠️  No catalog found at {catalog_path}")

@@ -30,17 +30,23 @@ class StructureVisualizer:
         'highlight': '#E74C3C'  # Red for differences
     }
 
-    def __init__(self, output_dir: Path = None):
+    def __init__(self, output_dir: Path = None, dataset_name: str = None):
         """
         Initialize visualizer.
 
         Args:
-            output_dir: Directory for output files (default: data/plots/)
+            output_dir: Directory for output files (uses new structure if None)
+            dataset_name: Dataset name (required if output_dir is None)
         """
         if output_dir is None:
-            output_dir = Path("data/plots")
+            if dataset_name:
+                from .paths import get_project_paths
+                paths = get_project_paths(dataset_name)
+                output_dir = paths.plots
+            else:
+                output_dir = Path("data/2_plans")
         self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents = True, exist_ok = True)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Set matplotlib style for clean look
         plt.style.use('seaborn-v0_8-whitegrid')

@@ -149,17 +149,18 @@ class StructurePlan:
         Returns:
             Dict with paths to saved files
         """
+        from .paths import get_project_paths
+
         if output_dir is None:
-            base_dir = Path("data/plans")
+            paths = get_project_paths(self.dataset_name)
+            current_path = paths.get_structure_current_path(self.version)
+            planned_path = paths.get_structure_plan_path(self.version)
         else:
             base_dir = Path(output_dir)
-
-        target_dir = base_dir / self.dataset_name
-        target_dir.mkdir(parents = True, exist_ok = True)
-
-        # Pfade korrekt zusammensetzen
-        current_path = target_dir / f"structure_current_{self.dataset_name}_v{self.version}.yaml"
-        planned_path = target_dir / f"structure_plan_{self.dataset_name}_v{self.version}.yaml"
+            target_dir = base_dir / self.dataset_name
+            target_dir.mkdir(parents = True, exist_ok = True)
+            current_path = target_dir / f"structure_current_{self.dataset_name}_v{self.version}.yaml"
+            planned_path = target_dir / f"structure_plan_{self.dataset_name}_v{self.version}.yaml"
 
         # Speichern unter Verwendung der vorhandenen Datenstruktur
         # (Da _prepare_for_export fehlt, nutzen wir direkt die dicts)
