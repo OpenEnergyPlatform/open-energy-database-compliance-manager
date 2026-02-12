@@ -176,9 +176,17 @@ class TransformationPlanner:
 
         return recommendations
 
-    def extract_current_structure(self) -> Dict[str, Any]:
+    def extract_current_structure(
+            self,
+            include_metadata: bool = False
+    ) -> Dict[str, Any]:
         """
         Extract current structure from analyzed package.
+
+        Only includes DATA and ADDITIONAL_DATA resources by default.
+
+        Args:
+            include_metadata: If True, also include METADATA resources
 
         Returns:
             Dictionary representing current data structure
@@ -186,15 +194,34 @@ class TransformationPlanner:
         resources = []
 
         for idx, resource in enumerate(self.package.resources):
+            # Filter by classification
+            if resource.classification:
+                from .file_classifier import ResourceType
+                # Skip ignored types
+                if resource.classification in [
+                    ResourceType.NOT_SUPPORTED,
+                    ResourceType.IGNORE
+                ]:
+                    continue
+
+                # Skip metadata unless requested
+                if not include_metadata and resource.classification == ResourceType.METADATA:
+                    continue
+
             # Extract fields from column names
             fields = []
             if resource.column_names:
                 for col_name in resource.column_names:
-                    fields.append({
-                        'name': col_name,
-                        'type': 'unknown',  # Could be enhanced with type detection
-                        'description': ''
-                    })
+                    # Use digester if available
+                    if hasattr(self, 'digester') and self.digester:
+                        field = self.digester.digest_field(col_name)
+                    else:
+                        field = {
+                            'name': col_name,
+                            'type': 'unknown',
+                            'description': ''
+                        }
+                    fields.append(field)
 
             resource_dict = {
                 'name': resource.path.name,
@@ -206,7 +233,7 @@ class TransformationPlanner:
                 'rows': resource.n_rows or 0,
                 'columns': resource.n_columns or 0,
                 'fields': fields,
-                'group_number': resource.group_number,  # Will be None initially
+                'group_number': resource.group_number,
                 'classification': resource.classification.value if resource.classification else None
             }
             resources.append(resource_dict)
@@ -318,35 +345,36 @@ class TransformationPlanner:
 
         return output_files
 
-    def assign_groups_by_structure(self) -> Dict[int, List[str]]:
+    def assign_groups_by_structure(
+            self,
+            filter_by_classification: bool = True
+    ) -> Dict[int, List[str]]:
         """
         Automatically assign group_number to resources with identical structure.
+
+        Only processes DATA and ADDITIONAL_DATA resources by default.
+
+        Args:
+            filter_by_classification: If True, only group DATA and ADDITIONAL_DATA
 
         Updates the resource.group_number attribute for all resources.
 
         Returns:
             Dict mapping group_number to list of resource names
         """
+        # Filter resources first if classification is enabled
+        if filter_by_classification:
+            from .file_classifier import ResourceType
+            filtered_resources = [
+                r for r in self.package.resources
+                if r.classification in [ResourceType.DATA, ResourceType.ADDITIONAL_DATA]
+            ]
+            if filtered_resources:
+                print(
+                    f"   Grouping {len(filtered_resources)}/{len(self.package.resources)} resources (DATA + ADDITIONAL_DATA only)")
+
         structure_groups = self.col_analyzer.get_column_structure_groups()
         groups = {}
-
-        for group_idx, (group_name, group_info) in enumerate(structure_groups.items(),
-                                                             1):
-            groups[group_idx] = group_info['files']
-
-            # Assign group number to resources
-            for filename in group_info['files']:
-                for resource in self.package.resources:
-                    if resource.path.name == filename:
-                        resource.group_number = group_idx
-                        break
-
-        print(
-            f"✅ Assigned {len(groups)} groups to {len(self.package.resources)} resources")
-        for group_id, files in groups.items():
-            print(f"   Group {group_id}: {len(files)} files")
-
-        return groups
 
     def create_catalog_draft(self, output_dir: Path = None) -> Dict[str, Any]:
         """
