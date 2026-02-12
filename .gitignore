@@ -149,9 +149,12 @@ data/raw/*
 !data/raw/.gitkeep
 data/plots/
 !data/plots/.gitkeep
+data/plans/
+!data/plans/.gitkeep
 
 # Keep reports for documentation
 !data/reports/
+!data/catalogs/
 
 # Python
 __pycache__/
