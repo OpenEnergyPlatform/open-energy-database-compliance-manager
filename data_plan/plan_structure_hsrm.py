@@ -1,6 +1,7 @@
 """Open Energy Database Compliance Manager
 
 Main script for structure planning workflow.
+DataPacake HSRM.
 
 SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
 SPDX-License-Identifier: MIT
@@ -9,13 +10,14 @@ SPDX-License-Identifier: MIT
 from pathlib import Path
 from oedbcm import DataPackage
 from oedbcm.planner import TransformationPlanner
+from oedbcm.file_classifier import ResourceType
 from oedbcm.structure_schema import StructurePlan
 import sys
 
 
 def main_planning_workflow(
         dataset_path: Path,
-        version: str = "0.2.0",
+        version: str = "0.1.0",
         description: str = "Initial structure planning"
 ):
     """
@@ -39,7 +41,41 @@ def main_planning_workflow(
     print("🔍 Step 2: Analyzing structure...")
     planner = TransformationPlanner(package)
 
+    # Step 2a: Create classification catalog
+    print("📋 Step 2a: Creating resource classification catalog...")
+    classification_result = planner.create_catalog_draft()
+
+    # Show classification summary
+    print(f"\n   Classification breakdown:")
+    for type_name, count in sorted(classification_result['type_counts'].items()):
+        print(f"     • {type_name:<25} {count:>2} resources")
+
+    print(f"\n   📝 OPTIONAL: Review and edit catalog at:")
+    print(f"      {classification_result['draft_path']}")
+    print(
+        f"      Save as '{package.dataset_name}_catalog.csv' to use custom classification")
+
+    # Try to load catalog if it exists
+    catalog_path = Path("data/catalogs") / f"{package.dataset_name}_catalog.csv"
+    if catalog_path.exists():
+        print(f"\n   ✅ Found existing catalog - loading classifications...")
+        planner.load_catalog(catalog_path)
+    else:
+        print(
+            f"\n   ℹ️  Using auto-generated classifications (no manual catalog found)")
+        # Apply draft classifications to resources
+        import shutil
+        shutil.copy(classification_result['draft_path'], catalog_path)
+        planner.load_catalog(catalog_path)
+
+    print()
+
     # Assign groups automatically based on structure similarity
+    groups = planner.assign_groups_by_structure()
+    print()
+
+    # Step 2b: Assign groups automatically based on structure similarity
+    print("🔍 Step 2b: Assigning structure groups...")
     groups = planner.assign_groups_by_structure()
     print()
 
@@ -143,8 +179,8 @@ if __name__ == "__main__":
     # Run main workflow
     plan, files = main_planning_workflow(
         dataset_path = dataset_path,
-        version = "0.1.0",
-        description = "Initial structure analysis for HSRM fuel cell measurements"
+        version = "0.3.0",
+        description = "Planning structure for HSRM fuel cell measurements"
     )
 
     # Example: Load and update existing plan

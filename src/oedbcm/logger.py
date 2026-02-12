@@ -35,7 +35,10 @@ class ValidationLogger:
         # Setup output directory
         if output_dir is None:
             output_dir = Path("data/reports")
-        self.output_dir = Path(output_dir)
+        else:
+            base_dir = Path(output_dir)
+
+        self.output_dir = base_dir / dataset_name
         self.output_dir.mkdir(parents = True, exist_ok = True)
 
         # Create base filename

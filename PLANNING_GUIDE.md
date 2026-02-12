@@ -42,7 +42,7 @@ output_files = planner.save_complete_plan(plan)
 
 This creates:
 - `data/plans/structure_plan_<dataset>_v0.1.0.yaml` - Editable plan
-- `data/visualizations/structure_comparison_v0.1.0.png` - Visual comparison
+- `data/plots/structure_comparison_v0.1.0.png` - Visual comparison
 
 ### Step 2: Edit YAML Plan
 

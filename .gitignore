@@ -147,8 +147,8 @@ cython_debug/
 # Data files
 data/raw/*
 !data/raw/.gitkeep
-data/visualizations/
-!data/visualizations/.gitkeep
+data/plots/
+!data/plots/.gitkeep
 
 # Keep reports for documentation
 !data/reports/

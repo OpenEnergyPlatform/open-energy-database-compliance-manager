@@ -7,10 +7,12 @@ SPDX-License-Identifier: MIT
 """
 
 from pathlib import Path
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, TYPE_CHECKING
 from .resource import CSVResource
 from .logger import ValidationLogger
 
+if TYPE_CHECKING:
+    from .file_classifier import ResourceType
 
 class DataPackage:
     """Container for a collection of CSV files in a directory."""
@@ -33,18 +35,38 @@ class DataPackage:
         for csv_file in sorted(self.directory.glob("*.csv")):
             self.resources.append(CSVResource(csv_file))
 
-    def analyze_all(self, enable_logging: bool = False) -> None:
+    def analyze_all(
+            self,
+            enable_logging: bool = False,
+            filter_by_classification: bool = False
+    ) -> None:
         """
         Analyze all CSV files.
 
         Args:
             enable_logging: If True, create log files for this run
+            filter_by_classification: If True, only analyze DATA and ADDITIONAL_DATA resources
         """
         if enable_logging:
             self.logger = ValidationLogger(self.dataset_name)
             self.logger.log_start(self.directory, len(self.resources))
 
         for resource in self.resources:
+            # Skip if filtering enabled and resource should be ignored
+            if filter_by_classification and resource.classification:
+                from .file_classifier import ResourceType
+                if resource.classification in [
+                    ResourceType.METADATA,
+                    ResourceType.NOT_SUPPORTED,
+                    ResourceType.IGNORE
+                ]:
+                    if self.logger:
+                        self.logger.log_validation_issue(
+                            'INFO',
+                            f"Skipping {resource.path.name} (classified as {resource.classification.value})"
+                        )
+                    continue
+
             resource.analyze_structure()
 
             if self.logger:

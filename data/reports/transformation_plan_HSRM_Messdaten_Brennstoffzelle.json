@@ -16,23 +16,23 @@
       "impact": "442 columns affected",
       "details": {
         "invalid_columns": [
-          "H2Ratio_StdDev [-]",
-          "TemperatureExternalCoolingCircuitHEXReturn [�",
-          "Luft Soll [l/min]",
-          "Temperatur KFluss innen [°C]",
-          "Cell12_StdDev [V]",
-          "CurrentSecondLoad_StdDev [A]",
-          "PropVentil Bef. soll [%]",
-          "Externe Heizung [an/aus]",
-          "TemperatureOuterCoolingCircuitFlowMeter [°C]",
-          "Cell16_StdDev [V]"
+          "Purge auf/zu",
+          "Zelle45 [V]",
+          "TemperatureExternalCoolingCircuitIn_StdDev [°C]",
+          "TemperatureExternalCoolingCircuitHEXReturn_StdDev [°C]",
+          "Luftkompressor soll [rpm]",
+          "Leistung WP innen [W]",
+          "Wasserstoff [l/min]",
+          "﻿Position in P&ID",
+          "TemperatureOuterCoolingCircuitHeater [°C]",
+          "Cell09_StdDev [V]"
         ],
         "example_mappings": {
-          "H2Ratio_StdDev [-]": "h2ratio_stddev",
-          "TemperatureExternalCoolingCircuitHEXReturn [�": "temperatureexternalcoolingcircuithexreturn",
-          "Luft Soll [l/min]": "luft_soll_l_min",
-          "Temperatur KFluss innen [°C]": "temperatur_kfluss_innen_c",
-          "Cell12_StdDev [V]": "cell12_stddev_v"
+          "Purge auf/zu": "purge_auf_zu",
+          "Zelle45 [V]": "zelle45_v",
+          "TemperatureExternalCoolingCircuitIn_StdDev [°C]": "temperatureexternalcoolingcircuitin_stddev_c",
+          "TemperatureExternalCoolingCircuitHEXReturn_StdDev [°C]": "temperatureexternalcoolingcircuithexreturn_stddev_c",
+          "Luftkompressor soll [rpm]": "luftkompressor_soll_rpm"
         }
       }
     },

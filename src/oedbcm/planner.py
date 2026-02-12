@@ -13,6 +13,7 @@ from .package import DataPackage
 from .analyzer import ColumnAnalyzer, FileNameAnalyzer
 from .visualizer import StructureVisualizer
 from .structure_schema import StructurePlan
+from .file_classifier import ResourceClassifier, ResourceType
 import json
 
 
@@ -25,6 +26,8 @@ class TransformationPlanner:
         self.file_analyzer = FileNameAnalyzer(package)
         self.visualizer = StructureVisualizer()
         self.current_plan: StructurePlan = None
+        self.classifier = ResourceClassifier()
+        self.catalog = None
 
     def analyze_and_plan(self) -> Dict[str, Any]:
         """
@@ -203,7 +206,8 @@ class TransformationPlanner:
                 'rows': resource.n_rows or 0,
                 'columns': resource.n_columns or 0,
                 'fields': fields,
-                'group_number': resource.group_number  # Will be None initially
+                'group_number': resource.group_number,  # Will be None initially
+                'classification': resource.classification.value if resource.classification else None
             }
             resources.append(resource_dict)
 
@@ -343,6 +347,91 @@ class TransformationPlanner:
             print(f"   Group {group_id}: {len(files)} files")
 
         return groups
+
+    def create_catalog_draft(self, output_dir: Path = None) -> Dict[str, Any]:
+        """
+        Create classification catalog draft.
+
+        Args:
+            output_dir: Output directory (default: data/catalogs/)
+
+        Returns:
+            Classification results
+        """
+        return self.classifier.classify_package(self.package, output_dir)
+
+    def load_catalog(self, catalog_path: Path = None) -> int:
+        """
+        Load finalized catalog and apply to resources.
+
+        Args:
+            catalog_path: Path to catalog CSV. If None, auto-detect.
+
+        Returns:
+            Number of resources classified
+        """
+        if catalog_path is None:
+            # Try to find catalog in standard location
+            catalog_dir = Path("data/catalogs")
+            catalog_path = catalog_dir / f"{self.package.dataset_name}_catalog.csv"
+
+            if not catalog_path.exists():
+                print(f"⚠️  No catalog found at {catalog_path}")
+                print(f"   Create one with: planner.create_catalog_draft()")
+                return 0
+
+        # Load catalog
+        self.catalog = self.classifier.load_catalog(catalog_path)
+
+        # Apply classifications to resources
+        classified_count = 0
+        for resource in self.package.resources:
+            if resource.path.name in self.catalog:
+                resource.classification = self.catalog[resource.path.name]
+                classified_count += 1
+
+        print(f"✅ Loaded catalog: {catalog_path}")
+        print(
+            f"   Applied classifications to {classified_count}/{len(self.package.resources)} resources")
+
+        # Print breakdown
+        type_counts = {}
+        for resource in self.package.resources:
+            if resource.classification:
+                type_val = resource.classification.value
+                type_counts[type_val] = type_counts.get(type_val, 0) + 1
+
+        if type_counts:
+            print("\n   Classification breakdown:")
+            for type_name, count in sorted(type_counts.items()):
+                print(f"     • {type_name:<25} {count:>2} resources")
+
+        return classified_count
+
+    def get_resources_by_type(
+            self,
+            resource_type: ResourceType
+    ) -> List:
+        """
+        Get resources filtered by classification type.
+
+        Args:
+            resource_type: ResourceType to filter by
+
+        Returns:
+            List of resources matching the type
+        """
+        if self.catalog is None:
+            print("⚠️  No catalog loaded. Call load_catalog() first.")
+            return []
+
+        filtered = []
+        for resource in self.package.resources:
+            classified_type = self.catalog.get(resource.path.name)
+            if classified_type == resource_type:
+                filtered.append(resource)
+
+        return filtered
 
     def save_plan(self, output_path: Path = None):
         """Save transformation plan to JSON."""

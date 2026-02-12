@@ -35,10 +35,10 @@ class StructureVisualizer:
         Initialize visualizer.
 
         Args:
-            output_dir: Directory for output files (default: data/visualizations/)
+            output_dir: Directory for output files (default: data/plots/)
         """
         if output_dir is None:
-            output_dir = Path("data/visualizations")
+            output_dir = Path("data/plots")
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents = True, exist_ok = True)
 
@@ -64,6 +64,15 @@ class StructureVisualizer:
         Returns:
             Path to saved PNG file
         """
+        # Extract dataset name for folder structure
+        dataset_name = current_structure.get('dataset_name') or \
+                       current_structure.get('name') or \
+                       "unknown_dataset"
+
+        # Create dataset specific subdirectory: data/plots/HSRM_.../
+        dataset_plot_dir = self.output_dir / dataset_name
+        dataset_plot_dir.mkdir(parents = True, exist_ok = True)
+
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (20, 12))
         fig.patch.set_facecolor(self.COLORS['background'])
 
@@ -96,7 +105,7 @@ class StructureVisualizer:
         plt.tight_layout(rect = [0, 0.03, 1, 0.96])
 
         # Save with version in filename
-        output_path = self.output_dir / f"structure_comparison_v{version}.png"
+        output_path = dataset_plot_dir / f"structure_comparison_v{version}.png"
         plt.savefig(
             output_path,
             dpi = 300,

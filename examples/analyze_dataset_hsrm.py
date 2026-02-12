@@ -62,4 +62,4 @@ print(f"Visualization: {output_files['visualization']}")
 print("\n📝 Next: Edit the YAML file to define your planned structure!")
 print("="*70 + "\n")
 
-print("\n✅ Complete analysis finished! Check data/reports/, data/plans/, and data/visualizations/")
+print("\n✅ Complete analysis finished! Check data/reports/, data/plans/, and data/plots/")

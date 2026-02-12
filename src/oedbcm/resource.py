@@ -9,9 +9,12 @@ SPDX-License-Identifier: MIT
 """
 
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, TYPE_CHECKING
 import csv
 import re
+
+if TYPE_CHECKING:
+    from .file_classifier import ResourceType
 
 class Resource:
     """
@@ -28,6 +31,7 @@ class Resource:
         n_columns: Number of columns/fields in the file
         column_names: List of column/field names from the file header
         group_number: Optional group ID for mapping to planned structure
+        classification: Optional ResourceType classification from catalog
     """
 
     # Regex pattern for valid database column names:
@@ -57,6 +61,9 @@ class Resource:
 
         # Group assignment for planning - populated by planner
         self.group_number: Optional[int] = None
+
+        # Classification from catalog - populated by load_catalog
+        self.classification: Optional['ResourceType'] = None
 
     def _detect_file_type(self) -> str:
         """Extract file extension without dot."""

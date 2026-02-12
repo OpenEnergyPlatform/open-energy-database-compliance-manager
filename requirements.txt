@@ -20,3 +20,4 @@ wheel
 matplotlib
 networkx
 pyyaml
+omi

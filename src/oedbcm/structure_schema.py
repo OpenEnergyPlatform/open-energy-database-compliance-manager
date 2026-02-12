@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import yaml
+import json
 
 
 class StructurePlan:
@@ -138,32 +139,120 @@ class StructurePlan:
         plan.resource_mapping = data.get('resource_mapping', [])
         return plan
 
-    def save_yaml(self, output_path: Path = None) -> Path:
+    def save_yaml(self, output_dir: Path = None) -> Dict[str, Path]:
         """
-        Save plan to YAML file.
+        Save current and planned structures to YAML.
 
         Args:
-            output_path: Path for output file. If None, uses default naming.
+            output_dir: Directory for YAML files (default: data/plans/)
 
         Returns:
-            Path to saved file
+            Dict with paths to saved files
         """
-        if output_path is None:
-            output_dir = Path("data/plans")
-            output_dir.mkdir(parents = True, exist_ok = True)
-            output_path = output_dir / f"structure_plan_{self.dataset_name}_v{self.version}.yaml"
+        if output_dir is None:
+            base_dir = Path("data/plans")
+        else:
+            base_dir = Path(output_dir)
 
-        with open(output_path, 'w', encoding = 'utf-8') as f:
+        target_dir = base_dir / self.dataset_name
+        target_dir.mkdir(parents = True, exist_ok = True)
+
+        # Pfade korrekt zusammensetzen
+        current_path = target_dir / f"structure_current_{self.dataset_name}_v{self.version}.yaml"
+        planned_path = target_dir / f"structure_plan_{self.dataset_name}_v{self.version}.yaml"
+
+        # Speichern unter Verwendung der vorhandenen Datenstruktur
+        # (Da _prepare_for_export fehlt, nutzen wir direkt die dicts)
+        with open(current_path, 'w', encoding = 'utf-8') as f:
             yaml.dump(
-                self.to_dict(),
+                self.current_structure,
                 f,
                 default_flow_style = False,
                 allow_unicode = True,
                 sort_keys = False
             )
 
-        print(f"✅ Structure plan saved: {output_path}")
-        return output_path
+        with open(planned_path, 'w', encoding = 'utf-8') as f:
+            yaml.dump(
+                self.planned_structure,
+                f,
+                default_flow_style = False,
+                allow_unicode = True,
+                sort_keys = False
+            )
+
+        print(f"✅ Current structure saved: {current_path}")
+        print(f"✅ Planned structure saved: {planned_path}")
+
+        return {
+            'current': current_path,
+            'planned': planned_path
+        }
+
+    def save_split_yaml(self, output_dir: Path = None) -> Dict[str, Path]:
+        """
+        Save current and planned structures to separate YAML files.
+
+        This allows opening both files side-by-side for comparison.
+
+        Args:
+            output_dir: Directory for output files. If None, uses data/plans/
+
+        Returns:
+            Dict with paths to 'current' and 'planned' YAML files
+        """
+        if output_dir is None:
+            output_dir = Path("data/plans")
+        output_dir.mkdir(parents = True, exist_ok = True)
+
+        base_name = f"{self.dataset_name}_v{self.version}"
+
+        # Save current structure
+        current_path = output_dir / f"current_{base_name}.yaml"
+        current_data = {
+            'metadata': self.to_dict()['metadata'],
+            'structure': self.current_structure
+        }
+
+        # Clean data to avoid YAML anchors
+        current_clean = json.loads(json.dumps(current_data))
+
+        with open(current_path, 'w', encoding = 'utf-8') as f:
+            yaml.dump(
+                current_clean,
+                f,
+                default_flow_style = False,
+                allow_unicode = True,
+                sort_keys = False
+            )
+
+        # Save planned structure
+        planned_path = output_dir / f"planned_{base_name}.yaml"
+        planned_data = {
+            'metadata': self.to_dict()['metadata'],
+            'structure': self.planned_structure,
+            'resource_mapping': self.resource_mapping
+        }
+
+        # Clean data to avoid YAML anchors
+        planned_clean = json.loads(json.dumps(planned_data))
+
+        with open(planned_path, 'w', encoding = 'utf-8') as f:
+            yaml.dump(
+                planned_clean,
+                f,
+                default_flow_style = False,
+                allow_unicode = True,
+                sort_keys = False
+            )
+
+        print(f"✅ Current structure saved: {current_path}")
+        print(f"✅ Planned structure saved: {planned_path}")
+
+        return {
+            'current': current_path,
+            'planned': planned_path
+        }
 
     @classmethod
     def load_yaml(cls, yaml_path: Path) -> 'StructurePlan':
