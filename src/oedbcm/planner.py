@@ -15,7 +15,7 @@ from .analyzer import ColumnAnalyzer, FileNameAnalyzer
 from .visualizer import StructureVisualizer
 from .structure_schema import StructurePlan
 from .file_classifier import ResourceClassifier, ResourceType
-from .digester import MetadataDigester
+from .digester import MetadataDigester, DigestConfig
 import json
 
 

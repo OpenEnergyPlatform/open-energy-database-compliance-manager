@@ -70,12 +70,13 @@ def main_planning_workflow(
 
     print()
 
-    # Assign groups automatically based on structure similarity
-    groups = planner.assign_groups_by_structure()
+    # Step 2b: Analyze only DATA and ADDITIONAL_DATA resources
+    print("🔍 Step 2b: Analyzing DATA and ADDITIONAL_DATA resources...")
+    package.analyze_all(filter_by_classification = True)
     print()
 
-    # Step 2b: Assign groups automatically based on structure similarity
-    print("🔍 Step 2b: Assigning structure groups...")
+    # Step 2c: Assign groups automatically based on structure similarity
+    print("🔍 Step 2c: Assigning structure groups...")
     groups = planner.assign_groups_by_structure()
     print()
 
@@ -179,7 +180,7 @@ if __name__ == "__main__":
     # Run main workflow
     plan, files = main_planning_workflow(
         dataset_path = dataset_path,
-        version = "0.3.0",
+        version = "0.4.0",
         description = "Planning structure for HSRM fuel cell measurements"
     )
 

@@ -145,16 +145,12 @@ cython_debug/
 .idea/
 
 # Data files
-data/raw/*
-!data/raw/.gitkeep
-data/plots/
-!data/plots/.gitkeep
-data/plans/
-!data/plans/.gitkeep
-
-# Keep reports for documentation
-!data/reports/
-!data/catalogs/
+data/1_raw/
+!data/1_raw/.gitkeep
+data/2_plans/
+!data/2_plans/.gitkeep
+data/3_results/
+!data/3_results/.gitkeep
 
 # Python
 __pycache__/
