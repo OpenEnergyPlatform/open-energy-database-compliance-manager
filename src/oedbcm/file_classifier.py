@@ -119,20 +119,25 @@ class ResourceClassifier:
     def classify_package(
             self,
             package,
-            output_dir: Path = None
+            output_dir: Path = None,
+            version: str = "0.1.0"
     ) -> Dict[str, Any]:
         """
-        Classify all resources in a package and create catalog draft.
+        Classify all resources in a package and create catalog draft + catalog.
 
         Args:
             package: DataPackage instance
-            output_dir: Output directory for catalog (default: data/catalogs/)
+            output_dir: Output directory for catalog (uses new structure if None)
+            version: Version string for catalog files
 
         Returns:
             Dict with classification results
         """
+        from .paths import get_project_paths
+
         if output_dir is None:
-            output_dir = Path("data/catalogs")
+            paths = get_project_paths(package.dataset_name)
+            output_dir = paths.catalogs
         output_dir.mkdir(parents = True, exist_ok = True)
 
         # Analyze package if not done yet
@@ -159,15 +164,23 @@ class ResourceClassifier:
                 'size_mb': round(resource.file_size / (1024 * 1024), 3),
                 'format': resource.file_type.upper(),
                 'encoding': getattr(resource, 'detected_encoding', 'utf-8'),
-                'notes': ''  # For manual editing
+                'target_table': '',  # Will be filled manually
+                'notes': ''
             })
 
-        # Create draft catalog
-        draft_path = output_dir / f"{package.dataset_name}_draft.csv"
+        # Create draft catalog with version
+        draft_path = output_dir / f"{package.dataset_name}_v{version}_draft.csv"
         self._save_catalog_csv(classifications, draft_path)
 
+        # Automatically create catalog copy
+        catalog_path = output_dir / f"{package.dataset_name}_v{version}_catalog.csv"
+        self._save_catalog_csv(classifications, catalog_path)
+
         print(f"✅ Draft catalog created: {draft_path}")
-        print(f"   📝 Edit and save as '{package.dataset_name}_catalog.csv' to use")
+        print(f"✅ Catalog copy created: {catalog_path}")
+        print(f"   📝 Edit {catalog_path} to:")
+        print(f"      - Verify/change 'type' classification")
+        print(f"      - Set 'target_table' for DATA files")
 
         # Statistics
         type_counts = {}
@@ -177,6 +190,8 @@ class ResourceClassifier:
 
         return {
             'draft_path': draft_path,
+            'catalog_path': catalog_path,
+            'version': version,
             'total_resources': len(classifications),
             'classifications': classifications,
             'type_counts': type_counts
@@ -186,7 +201,9 @@ class ResourceClassifier:
         """Save classifications to CSV."""
         fieldnames = [
             'filename', 'type', 'rows', 'columns',
-            'size_mb', 'format', 'encoding', 'notes'
+            'size_mb', 'format', 'encoding',
+            'target_table',
+            'notes'
         ]
 
         with open(output_path, 'w', newline = '', encoding = 'utf-8') as f:
@@ -198,7 +215,7 @@ class ResourceClassifier:
                 row = {k: item[k] for k in fieldnames}
                 writer.writerow(row)
 
-    def load_catalog(self, catalog_path: Path) -> Dict[str, ResourceType]:
+    def load_catalog(self, catalog_path: Path) -> Dict[str, Dict]:
         """
         Load finalized catalog CSV.
 
@@ -206,7 +223,7 @@ class ResourceClassifier:
             catalog_path: Path to catalog CSV
 
         Returns:
-            Dict mapping filename to ResourceType
+            Dict mapping filename to dict with ResourceType and target_table
         """
         catalog = {}
 
@@ -215,6 +232,7 @@ class ResourceClassifier:
             for row in reader:
                 filename = row['filename']
                 type_str = row['type']
+                target_table = row.get('target_table', '')
 
                 # Map string back to Enum
                 try:
@@ -222,7 +240,10 @@ class ResourceClassifier:
                 except ValueError:
                     resource_type = ResourceType.DATA  # Fallback
 
-                catalog[filename] = resource_type
+                catalog[filename] = {
+                    'type': resource_type,
+                    'target_table': target_table
+                }
 
         return catalog
 

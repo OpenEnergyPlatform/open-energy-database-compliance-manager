@@ -1,193 +1,318 @@
-# Structure Planning Guide
+# Open Energy Database Compliance Manager - Planning Guide
 
-This guide explains how to use the structure planning feature to visualize and optimize your dataset structure.
+**3-Phase Workflow for OEP Dataset Preparation**
 
-## Overview
+---
 
-The structure planning workflow helps you:
+## 🎯 Overview
 
-1. **Analyze** current data structure (as-is)
-2. **Plan** optimized structure (to-be)
-3. **Visualize** the comparison
-4. **Version** your planning iterations
-5. **Export** plans as editable YAML files
+### Phase 0: Raw Data 📦
+`data/0_raw/(dataset)/` - Original files, never modified
 
-## Quick Start
+### Phase 1+2: Analysis & Planning 🔍
+`data/2_planning/(dataset)/` - Classification, structure plans, metadata
 
-### Step 1: Run Initial Analysis
+### Phase 3: Results ✅  
+`data/3_results/(dataset)/` - Transformed OEP-compliant tables
+
+---
+
+## 📁 Complete Folder Structure
+
+```
+data/
+├── 0_raw/HSRM_Messdaten_Brennstoffzelle/     # Original data
+│   ├── measurements_*.csv                     # 18 Data files
+│   ├── device_info.csv                        # 2 Additional Data
+│   ├── readme.csv                             # 3 Metadata
+│   └── *.pdf, *.png                          # Ignored
+│
+├── 2_planning/HSRM_Messdaten_Brennstoffzelle/
+│   ├── catalogs/
+│   │   ├── *_draft.csv                       # Auto-generated
+│   │   └── *_catalog.csv                     # Manual-edited ✏️
+│   ├── structure/
+│   │   ├── structure_current_*_v0.1.0.yaml  # As-is
+│   │   ├── structure_plan_*_v0.1.0.yaml     # To-be
+│   │   └── structure_merged_*_v0.1.0.yaml   # Final (DATA only)
+│   ├── metadata/
+│   │   ├── oemetadata_general_keys_draft.yaml
+│   │   ├── oemetadata_context_draft.yaml
+│   │   ├── oemetadata_spatial_temporal_draft.yaml
+│   │   ├── oemetadata_contributors_draft.yaml
+│   │   ├── oemetadata_sources_draft.yaml
+│   │   └── oemetadata_licenses_draft.yaml
+│   ├── plots/
+│   │   └── structure_comparison_v0.1.0.png
+│   └── reports/
+│       └── 2026-02-18_150530_*.log
+│
+└── 3_results/HSRM_Messdaten_Brennstoffzelle/
+    └── hsrm_fuel_cell_measurements.csv       # Final table
+```
+
+---
+
+## 🔄 Complete Workflow
+
+### 1️⃣ Load & Classify
+
 ```python
 from pathlib import Path
 from oedbcm import DataPackage
 from oedbcm.planner import TransformationPlanner
 
-# Load your dataset
-dataset_path = Path("data/raw/your_dataset")
+# Load dataset
+dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle")
 package = DataPackage(dataset_path)
-
-# Create planner
 planner = TransformationPlanner(package)
 
-# Auto-assign groups based on structure similarity
-groups = planner.assign_groups_by_structure()
+# Create classification draft
+result = planner.create_catalog_draft()
+# Output: data/2_planning/(dataset)/catalogs/*_draft.csv
+```
 
-# Create initial structure plan
+**📝 Manual Step:** Edit `*_draft.csv` → Save as `*_catalog.csv`
+
+**Classification Types:**
+- `Data` - Tables to upload (18 files)
+- `Metadata` - Descriptive info (3 files)
+- `Additional Data` - Supporting info (2 files)
+- `Ignore` - Binary files, PDFs
+- `Not Supported Yet` - XLSX, JSON
+
+### 2️⃣ Load Catalog & Analyze
+
+```python
+# Load finalized catalog
+planner.load_catalog()
+
+# Analyze only DATA + ADDITIONAL_DATA
+package.analyze_all(filter_by_classification=True)
+
+# Group by identical structure
+groups = planner.assign_groups_by_structure()
+```
+
+### 3️⃣ Extract OEMetadata
+
+```python
+# Create structure plan with auto-extracted metadata
 plan = planner.create_structure_plan(
     version="0.1.0",
-    description="Initial structure analysis"
+    description="Initial OEMetadata extraction"
 )
-
-# Save YAML + visualization
-output_files = planner.save_complete_plan(plan)
 ```
 
-This creates:
-- `data/plans/structure_plan_<dataset>_v0.1.0.yaml` - Editable plan
-- `data/plots/structure_comparison_v0.1.0.png` - Visual comparison
-
-### Step 2: Edit YAML Plan
-
-Open the YAML file and modify the `planned_structure` section:
+**Auto-extracted fields:**
 ```yaml
-metadata:
-  dataset_name: my_dataset
-  version: 0.1.0
-  description: Initial structure analysis
-
-current_structure:
-  name: my_dataset
-  resources:
-    - name: measurements_2023.csv
-      fields:
-        - name: timestamp
-        - name: Temperature
-        - name: Pressure (bar)
-
-planned_structure:  # ← Edit this!
-  name: my_dataset
-  resources:
-    - name: timeseries_measurements
-      fields:
-        - name: timestamp
-        - name: temperature  # ← Standardized
-        - name: pressure     # ← Standardized
-        - name: unit         # ← New field
+fields:
+  - name: temperature              # ✅ Standardized
+    type: number                   # ✅ Inferred
+    description: Temperature [°C]  # ✅ Original name
+    nullable: true
+    unit: °C                      # ✅ Extracted from [°C]
+    isAbout: []                   # Fill manually
+    valueReference: []            # Fill manually
 ```
 
-### Step 3: Update Version and Visualize
+**Extraction patterns:**
+- `Temperature [°C]` → unit: `°C`
+- `Pressure (bar)` → unit: `bar`
+- `voltage_V` → unit: `V`
+- `Power_in_kW` → unit: `kW`
+
+### 4️⃣ Create Merged Structure
+
 ```python
-from oedbcm.structure_schema import StructurePlan
+# Merge all DATA tables into final structure
+merged_plan = planner.create_merged_structure_plan(
+    version="0.1.0",
+    target_table_name="hsrm_fuel_cell_measurements"
+)
+# Output: structure_merged_*_v0.1.0.yaml
+```
 
-# Load edited plan
-plan = StructurePlan.load_yaml("data/plans/structure_plan_my_dataset_v0.1.0.yaml")
+This combines 18 DATA tables → 1 final table structure
 
-# Increment version
-plan.increment_version('minor')  # 0.1.0 → 0.2.0
+### 5️⃣ Generate OEMetadata Sections
 
-# Save updated plan
-plan.save_yaml()
+```python
+from oedbcm.metadata_builder import OEMetadataBuilder
 
-# Create new visualization
-from oedbcm.visualizer import StructureVisualizer
-viz = StructureVisualizer()
-viz.visualize_comparison(
-    current_structure=plan.current_structure,
-    planned_structure=plan.planned_structure,
-    title="My Dataset - Structure Planning",
-    version=plan.version
+builder = OEMetadataBuilder(package.dataset_name)
+drafts = builder.create_all_drafts(
+    title="HSRM Fuel Cell Measurements",
+    description="Test bench measurements",
+    contributor_name="Your Name",
+    contributor_email="email@example.com"
 )
 ```
 
-## Main Script Usage
+**Output:** 6 YAML drafts in `metadata/`
 
-Use the provided `plan_structure.py` script:
-```bash
-python plan_structure.py
+**📝 Manual Step:** Edit drafts → Remove `_draft` suffix
+
+### 6️⃣ Visualize
+
+```python
+# Save with visualization
+output_files = planner.save_complete_plan(
+    plan, 
+    create_visualization=True
+)
 ```
 
-Edit the script to configure your dataset path.
+**Output:** `plots/structure_comparison_v0.1.0.png`
 
-## Key Concepts
+### 7️⃣ Transform (TODO)
 
-### Group Numbers
+```python
+# Future: Transform to final structure
+# Output: data/3_results/(dataset)/*.csv
+```
 
-Resources with identical structure get the same `group_number`:
+---
+
+## 🔑 Key Features
+
+### OEMetadata Auto-Extraction
+
+**Input column:** `Temperature [°C]`
+
+**Output:**
 ```yaml
-resources:
-  - name: measurements_jan.csv
-    group_number: 1
-    fields: [timestamp, value]
-  
-  - name: measurements_feb.csv
-    group_number: 1  # ← Same structure
-    fields: [timestamp, value]
-  
-  - name: metadata.csv
-    group_number: 2  # ← Different structure
-    fields: [id, description]
+name: temperature
+type: number
+description: Temperature [°C]
+unit: °C
 ```
 
-### Resource Mapping
+**Supported patterns:**
+- `[unit]` - Square brackets
+- `(unit)` - Parentheses
+- `_in_unit` - Underscore notation
+- `_unit` - Suffix
 
-Track transformations between current and planned:
+### Structure Grouping
+
+Identical structures → Same group:
 ```yaml
-resource_mapping:
-  - current_resource: measurements_2023.csv
-    planned_resource: timeseries_measurements
-    group_number: 1
-    transformation_notes: "Renamed, standardized columns, added unit field"
+- name: measurements_Q1.csv
+  group_number: 1
+  fields: [timestamp, temp, pressure]
+
+- name: measurements_Q2.csv
+  group_number: 1  # Same structure!
 ```
 
-### Semantic Versioning
+### Versioning
 
-- **Patch** (0.1.0 → 0.1.1): Minor edits
-- **Minor** (0.1.0 → 0.2.0): Structural changes
-- **Major** (0.1.0 → 1.0.0): Complete redesign
-
-## Workflow Tips
-
-1. **Start broad** - Create initial plan with `version="0.1.0"`
-2. **Iterate quickly** - Make small changes, increment patch version
-3. **Visualize often** - Generate PNG after each significant change
-4. **Document changes** - Use `transformation_notes` in mappings
-5. **Version milestones** - Increment minor/major for big decisions
-
-## Integration with OEMetadata
-
-The planned structure follows OEMetadata 2.0 schema:
-```yaml
-planned_structure:
-  resources:
-    - name: table_name
-      type: table
-      schema:
-        fields:
-          - name: column_name
-            type: integer
-            description: "..."
-            unit: MW
-            isAbout:
-              - name: concept_name
-                "@id": ontology_uri
+```python
+plan.increment_version('minor')  # 0.1.0 → 0.2.0
+plan.save_yaml()
 ```
 
-See `oemetadata_table_resource.yaml` for full template.
+- **Patch** (0.1.1): Typos, small edits
+- **Minor** (0.2.0): Structure changes
+- **Major** (1.0.0): Complete redesign
 
-## Troubleshooting
+---
 
-**Issue**: `No plan available` error  
-**Solution**: Call `create_structure_plan()` before `save_complete_plan()`
+## 🐛 Known Issues & Fixes
 
-**Issue**: YAML syntax errors  
-**Solution**: Use a YAML validator, check indentation (2 spaces)
+### ✅ Fixed Issues
 
-**Issue**: Visualization shows wrong data  
-**Solution**: Reload plan from YAML before visualizing
+1. **Duplicate catalogs folder**  
+   ❌ Was: `data/catalogs/` AND `data/2_planning/(dataset)/catalogs/`  
+   ✅ Now: Only `data/2_planning/(dataset)/catalogs/`
 
-## Next Steps
+2. **Reports subfolder**  
+   ❌ Was: `data/2_planning/(dataset)/reports/(dataset)/`  
+   ✅ Now: `data/2_planning/(dataset)/reports/`
 
-After planning:
-1. Review visualization with team
-2. Finalize planned structure in YAML
-3. Use plan as blueprint for data transformation
-4. Implement transformations in code
-5. Validate against OEMetadata schema
+3. **Missing merged structure**  
+   ✅ Now: Use `create_merged_structure_plan()`
+
+### ⏳ TODO
+
+1. **Reports visualization** - Improve readability
+2. **Data transformation** - Phase 3 implementation
+3. **OEMetadata validation** - Schema compliance check
+
+---
+
+## 📖 Example: Complete Run
+
+```python
+from pathlib import Path
+from oedbcm.package import DataPackage
+from oedbcm.planner import TransformationPlanner
+from oedbcm.metadata_builder import OEMetadataBuilder
+
+# 1. Load
+dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle")
+package = DataPackage(dataset_path)
+planner = TransformationPlanner(package)
+
+# 2. Classify → Edit catalog manually → Reload
+planner.create_catalog_draft()
+planner.load_catalog()
+
+# 3. Analyze
+package.analyze_all(filter_by_classification=True)
+planner.assign_groups_by_structure()
+
+# 4. Extract OEMetadata
+plan = planner.create_structure_plan(version="0.1.0")
+planner.save_complete_plan(plan)
+
+# 5. Merge
+merged = planner.create_merged_structure_plan(
+    version="0.1.0",
+    target_table_name="hsrm_measurements"
+)
+
+# 6. OEMetadata sections
+builder = OEMetadataBuilder(package.dataset_name)
+builder.create_all_drafts(
+    title="HSRM Fuel Cell Data",
+    description="Measurements from test bench"
+)
+```
+
+---
+
+## 💡 Tips
+
+1. **Always classify first** - Catalog drives everything
+2. **Check OEMetadata extraction** - Verify units extracted correctly
+3. **Use merged structure** - Final structure for upload
+4. **Version frequently** - Each major edit = new version
+5. **Edit drafts carefully** - YAML syntax matters
+
+---
+
+## 🆘 Troubleshooting
+
+**Missing fields in YAML:**
+```
+fields:
+  - name: temperature
+    type: unknown  # ❌ Bad
+```
+**Fix:** Ensure `analyze_all()` called before `create_structure_plan()`
+
+**No merged structure:**  
+**Fix:** Call `create_merged_structure_plan()` separately
+
+**Wrong folder structure:**  
+**Fix:** Delete old folders, re-run with latest code
+
+---
+
+## 📚 References
+
+- **OEMetadata Spec:** https://github.com/OpenEnergyPlatform/oemetadata
+- **OEP Upload Guide:** https://openenergy-platform.org/
+- **Project Repo:** https://github.com/ludee/open-energy-database-compliance-manager

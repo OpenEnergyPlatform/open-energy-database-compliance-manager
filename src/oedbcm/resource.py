@@ -32,6 +32,7 @@ class Resource:
         column_names: List of column/field names from the file header
         group_number: Optional group ID for mapping to planned structure
         classification: Optional ResourceType classification from catalog
+        target_table: Target table name for DATA resources from catalog
     """
 
     # Regex pattern for valid database column names:
@@ -64,6 +65,9 @@ class Resource:
 
         # Classification from catalog - populated by load_catalog
         self.classification: Optional['ResourceType'] = None
+
+        # Target table assignment from catalog - populated by load_catalog
+        self.target_table: str = ''
 
     def _detect_file_type(self) -> str:
         """Extract file extension without dot."""

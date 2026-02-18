@@ -34,9 +34,10 @@ class ValidationLogger:
         from .paths import get_project_paths
         paths = get_project_paths(dataset_name)
 
-        self.output_dir = paths.reports / dataset_name
+        self.output_dir = paths.reports
         self.output_dir.mkdir(parents = True, exist_ok = True)
 
+        # Ensure dataset_name is in filename for uniqueness
         self.base_filename = f"{self.timestamp}_{dataset_name}"
         self.log_file = self.output_dir / f"{self.base_filename}.log"
         self.json_file = self.output_dir / f"{self.base_filename}.json"

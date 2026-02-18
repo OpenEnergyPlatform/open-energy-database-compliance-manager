@@ -8,7 +8,6 @@ SPDX-License-Identifier: MIT
 """
 
 from pathlib import Path
-from oedbcm import DataPackage
 from oedbcm.planner import TransformationPlanner
 from oedbcm.file_classifier import ResourceType
 from oedbcm.structure_schema import StructurePlan
@@ -30,9 +29,6 @@ def main_planning_workflow(
         version: Version string for this plan
         description: Description of planning iteration
     """
-    logger = ValidationLogger(dataset_name = package.dataset_name)
-    logger.log_start(dataset_path, len(package.resources))
-
     print("\n" + "=" * 80)
     print("STRUCTURE PLANNING WORKFLOW")
     print("=" * 80 + "\n")
@@ -40,6 +36,8 @@ def main_planning_workflow(
     # Step 1: Load and analyze dataset
     print("📦 Step 1: Loading dataset...")
     package = DataPackage(dataset_path)
+    logger = ValidationLogger(dataset_name = package.dataset_name)
+    logger.log_start(dataset_path, len(package.resources))
     print(f"   Found {len(package.resources)} resources\n")
 
     # Step 2: Create planner
@@ -48,7 +46,7 @@ def main_planning_workflow(
 
     # Step 2a: Create classification catalog
     print("📋 Step 2a: Creating resource classification catalog...")
-    classification_result = planner.create_catalog_draft()
+    classification_result = planner.create_catalog_draft(version=version)
 
     # Show classification summary
     print(f"\n   Classification breakdown:")
@@ -60,19 +58,10 @@ def main_planning_workflow(
     print(
         f"      Save as '{package.dataset_name}_catalog.csv' to use custom classification")
 
-    # Try to load catalog if it exists
-    catalog_path = Path("data/catalogs") / f"{package.dataset_name}_catalog.csv"
-    if catalog_path.exists():
-        print(f"\n   ✅ Found existing catalog - loading classifications...")
-        planner.load_catalog(catalog_path)
-    else:
-        print(
-            f"\n   ℹ️  Using auto-generated classifications (no manual catalog found)")
-        # Apply draft classifications to resources
-        import shutil
-        shutil.copy(classification_result['draft_path'], catalog_path)
-        planner.load_catalog(catalog_path)
-
+    # Load catalog
+    print(f"\n   ℹ️  Catalog created at: {classification_result['catalog_path']}")
+    print(f"   📝 Edit 'type' and 'target_table' columns as needed")
+    planner.load_catalog(classification_result['catalog_path'])
     print()
 
     # Step 2b: Analyze only DATA and ADDITIONAL_DATA resources
@@ -114,9 +103,18 @@ def main_planning_workflow(
     print("   4. Increment version and regenerate visualization")
     print("\n" + "=" * 80 + "\n")
 
-    results = package.validate()
-    logger.save_json_report(results)
-    logger.append_to_history()
+    # Step 5: Create OEMetadata drafts
+    print("📄 Step 5: Creating OEMetadata section drafts...")
+    from oedbcm.metadata_builder import OEMetadataBuilder
+
+    builder = OEMetadataBuilder(package.dataset_name)
+    metadata_drafts = builder.create_all_drafts(
+        title = f"Dataset: {package.dataset_name}",
+        description = description,
+        contributor_name = "Your Name",
+        contributor_email = "email@example.com"
+    )
+    print()
 
     return plan, output_files
 
@@ -189,7 +187,7 @@ if __name__ == "__main__":
     # Run main workflow
     plan, files = main_planning_workflow(
         dataset_path = dataset_path,
-        version = "0.5.0",
+        version = "0.6.0",
         description = "Planning structure for HSRM fuel cell measurements"
     )
 

@@ -68,13 +68,45 @@ class ProjectPaths:
         ]:
             dir_path.mkdir(parents = True, exist_ok = True)
 
-    def get_catalog_draft_path(self) -> Path:
-        """Get path for catalog draft CSV."""
+    def get_catalog_draft_path(self, version: str = None) -> Path:
+        """
+        Get path for catalog draft CSV.
+
+        Args:
+            version: Version string. If None, returns unversioned path.
+        """
+        if version:
+            return self.catalogs / f"{self.dataset_name}_v{version}_draft.csv"
         return self.catalogs / f"{self.dataset_name}_draft.csv"
 
-    def get_catalog_path(self) -> Path:
-        """Get path for finalized catalog CSV."""
+    def get_catalog_path(self, version: str = None) -> Path:
+        """
+        Get path for finalized catalog CSV.
+
+        Args:
+            version: Version string. If None, returns unversioned path.
+        """
+        if version:
+            return self.catalogs / f"{self.dataset_name}_v{version}_catalog.csv"
         return self.catalogs / f"{self.dataset_name}_catalog.csv"
+
+    def get_latest_catalog(self) -> Path:
+        """
+        Get path to latest catalog version.
+
+        Returns:
+            Path to latest *_catalog.csv file, or None if not found.
+        """
+        catalog_files = list(self.catalogs.glob(f"{self.dataset_name}_v*_catalog.csv"))
+        if catalog_files:
+            return sorted(catalog_files)[-1]
+
+        # Fallback to unversioned
+        unversioned = self.get_catalog_path()
+        if unversioned.exists():
+            return unversioned
+
+        return None
 
     def get_structure_current_path(self, version: str) -> Path:
         """Get path for current structure YAML."""

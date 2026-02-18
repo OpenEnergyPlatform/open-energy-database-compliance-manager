@@ -8,9 +8,11 @@ SPDX-License-Identifier: MIT
 
 from pathlib import Path
 from typing import Dict, List, Any, Optional
+import yaml
 import csv
 import re
 from dataclasses import dataclass, field
+from datetime import datetime
 
 try:
     from omi import inspection
@@ -266,14 +268,23 @@ class OEMetadataBuilder:
 
         drafts = {}
 
-        drafts['general_keys'] = self.create_general_keys_draft(
-            title = title,
-            description = description
-        )
+        try:
+            drafts['general_keys'] = self.create_general_keys_draft(
+                title = title,
+                description = description
+            )
+        except Exception as e:
+            print(f"❌ Error creating general_keys: {e}")
 
-        drafts['context'] = self.create_context_draft()
+        try:
+            drafts['context'] = self.create_context_draft()
+        except Exception as e:
+            print(f"❌ Error creating context: {e}")
 
-        drafts['spatial_temporal'] = self.create_spatial_temporal_draft()
+        try:
+            drafts['spatial_temporal'] = self.create_spatial_temporal_draft()
+        except Exception as e:
+            print(f"❌ Error creating spatial_temporal: {e}")
 
         contributor_info = {}
         if contributor_name:
@@ -281,19 +292,29 @@ class OEMetadataBuilder:
         if contributor_email:
             contributor_info['email'] = contributor_email
 
-        drafts['contributors'] = self.create_contributors_draft(
-            default_contributor = contributor_info if contributor_info else None
-        )
+        try:
+            drafts['contributors'] = self.create_contributors_draft(
+                default_contributor = contributor_info if contributor_info else None
+            )
+        except Exception as e:
+            print(f"❌ Error creating contributors: {e}")
 
-        drafts['sources'] = self.create_sources_draft()
+        try:
+            drafts['sources'] = self.create_sources_draft()
+        except Exception as e:
+            print(f"❌ Error creating sources: {e}")
 
-        drafts['licenses'] = self.create_licenses_draft()
+        try:
+            drafts['licenses'] = self.create_licenses_draft()
+        except Exception as e:
+            print(f"❌ Error creating licenses: {e}")
 
         print("\n" + "=" * 70)
         print("DRAFTS CREATED - Please review and edit:")
         print("=" * 70)
         for section, path in drafts.items():
-            print(f"  {section:<20} {path}")
+            if path:  # Only show successful ones
+                print(f"  {section:<20} {path}")
         print("\nAfter editing, save with same name without '_draft' suffix")
         print("=" * 70 + "\n")
 

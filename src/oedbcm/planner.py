@@ -191,6 +191,7 @@ class TransformationPlanner:
         Extract current structure from analyzed package.
 
         Only includes DATA and ADDITIONAL_DATA resources by default.
+        Uses MetadataDigester to extract OEMetadata fields.
 
         Args:
             include_metadata: If True, also include METADATA resources
@@ -215,18 +216,23 @@ class TransformationPlanner:
                 if not include_metadata and resource.classification == ResourceType.METADATA:
                     continue
 
-            # Extract fields from column names
+            # Extract OEMetadata fields using digester
             fields = []
             if resource.column_names:
                 for col_name in resource.column_names:
-                    # Use digester if available
+                    # ✅ Use digester.digest_field() for complete OEMetadata
                     if hasattr(self, 'digester') and self.digester:
                         field = self.digester.digest_field(col_name)
                     else:
+                        # Fallback if digester not available
                         field = {
                             'name': col_name,
-                            'type': 'unknown',
-                            'description': ''
+                            'type': 'string',
+                            'description': col_name,
+                            'nullable': True,
+                            'unit': None,
+                            'isAbout': [],
+                            'valueReference': []
                         }
                     fields.append(field)
 
@@ -239,7 +245,11 @@ class TransformationPlanner:
                                                                   'encoding') else 'utf-8',
                 'rows': resource.n_rows or 0,
                 'columns': resource.n_columns or 0,
-                'fields': fields,
+                'schema': {
+                    'fields': fields,
+                    'primaryKey': [],
+                    'foreignKeys': []
+                },
                 'group_number': resource.group_number,
                 'classification': resource.classification.value if resource.classification else None
             }
@@ -352,6 +362,117 @@ class TransformationPlanner:
 
         return output_files
 
+    def create_merged_structure_plan(
+            self,
+            version: str = "0.1.0",
+            target_table_name: str = None,
+            description: str = "Merged structure for planning"
+    ) -> StructurePlan:
+        """
+        Create merged structure plan containing only DATA resources.
+
+        Combines all DATA tables into single target structure.
+
+        Args:
+            version: Version for merged plan
+            target_table_name: Name for final merged table
+            description: Description of merged structure
+
+        Returns:
+            StructurePlan with merged DATA resources
+        """
+        from .file_classifier import ResourceType
+
+        # Filter DATA resources only
+        data_resources = []
+        for resource in self.package.resources:
+            if resource.classification == ResourceType.DATA:
+                data_resources.append(resource)
+
+        if not data_resources:
+            print("⚠️  No DATA resources found in catalog")
+            return None
+
+        print(f"📊 Merging {len(data_resources)} DATA resources into single structure")
+
+        # Collect all unique fields from DATA resources
+        all_fields_dict = {}  # name -> field_def
+
+        for resource in data_resources:
+            if hasattr(self, 'digester') and self.digester and resource.column_names:
+                for col_name in resource.column_names:
+                    field = self.digester.digest_field(col_name)
+                    field_name = field['name']
+
+                    # Keep first occurrence or merge if needed
+                    if field_name not in all_fields_dict:
+                        all_fields_dict[field_name] = field
+
+        # Create merged resource definition
+        merged_fields = list(all_fields_dict.values())
+
+        target_name = target_table_name or f"{self.package.dataset_name}_merged"
+
+        merged_resource = {
+            'name': f"{target_name}.csv",
+            'path': f"data/3_results/{self.package.dataset_name}/{target_name}.csv",
+            'type': 'table',
+            'format': 'CSV',
+            'encoding': 'utf-8',
+            'rows': sum(r.n_rows or 0 for r in data_resources),
+            'columns': len(merged_fields),
+            'schema': {
+                'fields': merged_fields,
+                'primaryKey': [],
+                'foreignKeys': []
+            },
+            'classification': 'Data',
+            'source_files': [r.path.name for r in data_resources],
+            'source_count': len(data_resources)
+        }
+
+        # Create plan
+        plan = StructurePlan(
+            dataset_name = self.package.dataset_name,
+            version = version,
+            description = description
+        )
+
+        plan.set_current_structure(
+            package_name = self.package.dataset_name,
+            resources = [merged_resource]
+        )
+
+        # Planned is same as current for merged structure
+        import json
+        plan.set_planned_structure(
+            package_name = self.package.dataset_name,
+            resources = json.loads(json.dumps([merged_resource]))
+        )
+
+        # Save merged structure
+        merged_path = self.paths.structure / f"structure_merged_{self.package.dataset_name}_v{version}.yaml"
+
+        import yaml
+        with open(merged_path, 'w', encoding = 'utf-8') as f:
+            yaml.dump(
+                {
+                    'metadata': plan.to_dict()['metadata'],
+                    'merged_structure': plan.current_structure
+                },
+                f,
+                default_flow_style = False,
+                allow_unicode = True,
+                sort_keys = False
+            )
+
+        print(f"✅ Merged structure saved: {merged_path}")
+        print(f"   Target table: {target_name}.csv")
+        print(f"   Total fields: {len(merged_fields)}")
+        print(f"   Source files: {len(data_resources)}")
+
+        return plan
+
     def assign_groups_by_structure(
             self,
             filter_by_classification: bool = True
@@ -383,7 +504,7 @@ class TransformationPlanner:
         structure_groups = self.col_analyzer.get_column_structure_groups()
         groups = {}
 
-    def create_catalog_draft(self, output_dir: Path = None) -> Dict[str, Any]:
+    def create_catalog_draft(self, output_dir: Path = None, version: str = "0.1.0") -> Dict[str, Any]:
         """
         Create classification catalog draft.
 
@@ -393,7 +514,7 @@ class TransformationPlanner:
         Returns:
             Classification results
         """
-        return self.classifier.classify_package(self.package, output_dir)
+        return self.classifier.classify_package(self.package, output_dir, version)
 
     def load_catalog(self, catalog_path: Path = None) -> int:
         """
@@ -406,22 +527,28 @@ class TransformationPlanner:
             Number of resources classified
         """
         if catalog_path is None:
-            # Use new path structure
-            catalog_path = self.paths.get_catalog_path()
+            # Use new path structure - try to find latest version
+            catalog_files = list(
+                self.paths.catalogs.glob(f"{self.package.dataset_name}_v*_catalog.csv"))
 
-            if not catalog_path.exists():
-                print(f"⚠️  No catalog found at {catalog_path}")
+            if not catalog_files:
+                print(f"⚠️  No catalog found at {self.paths.catalogs}")
                 print(f"   Create one with: planner.create_catalog_draft()")
                 return 0
 
-        # Load catalog
-        self.catalog = self.classifier.load_catalog(catalog_path)
+            # Use latest version (sort by name)
+            catalog_path = sorted(catalog_files)[-1]
 
-        # Apply classifications to resources
+        # Load catalog
+        catalog = self.classifier.load_catalog(catalog_path)
+
+        # Apply classifications AND target_table to resources
         classified_count = 0
         for resource in self.package.resources:
-            if resource.path.name in self.catalog:
-                resource.classification = self.catalog[resource.path.name]
+            if resource.path.name in catalog:
+                catalog_entry = catalog[resource.path.name]
+                resource.classification = catalog_entry['type']
+                resource.target_table = catalog_entry.get('target_table', '')
                 classified_count += 1
 
         print(f"✅ Loaded catalog: {catalog_path}")
@@ -430,15 +557,30 @@ class TransformationPlanner:
 
         # Print breakdown
         type_counts = {}
+        target_tables = set()
+
         for resource in self.package.resources:
             if resource.classification:
                 type_val = resource.classification.value
                 type_counts[type_val] = type_counts.get(type_val, 0) + 1
 
+                # Collect target tables
+                if hasattr(resource, 'target_table') and resource.target_table:
+                    target_tables.add(resource.target_table)
+
         if type_counts:
             print("\n   Classification breakdown:")
             for type_name, count in sorted(type_counts.items()):
                 print(f"     • {type_name:<25} {count:>2} resources")
+
+        if target_tables:
+            print(f"\n   Target tables: {len(target_tables)}")
+            for table in sorted(target_tables):
+                data_files = [
+                    r.path.name for r in self.package.resources
+                    if hasattr(r, 'target_table') and r.target_table == table
+                ]
+                print(f"     • {table:<30} {len(data_files)} files")
 
         return classified_count
 
