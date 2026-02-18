@@ -15,8 +15,8 @@ class ProjectPaths:
     Centralized path management for the project.
 
     data/
-      1_raw/                    # Raw input data
-      2_plans/                  # Planning artifacts per dataset
+      0_raw/                    # Raw input data
+      2_planning/                  # Planning artifacts per dataset
         [DataPackageName]/
           catalogs/             # Resource classification catalogs
           plots/                # Visualizations
@@ -29,8 +29,8 @@ class ProjectPaths:
 
     # Base directories
     BASE_DATA = Path("data")
-    RAW = BASE_DATA / "1_raw"
-    PLANS = BASE_DATA / "2_plans"
+    RAW = BASE_DATA / "0_raw"
+    PLANS = BASE_DATA / "2_planning"
     RESULTS = BASE_DATA / "3_results"
 
     def __init__(self, dataset_name: str):

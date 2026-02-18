@@ -13,7 +13,7 @@ from oedbcm.analyzer import ColumnAnalyzer, FileNameAnalyzer
 from oedbcm.planner import TransformationPlanner
 
 # Your dataset
-dataset_path = Path("data/raw/HSRM_Messdaten_Brennstoffzelle")
+dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle")
 package = DataPackage(dataset_path)
 
 # 1. Column Analysis
@@ -62,4 +62,4 @@ print(f"Visualization: {output_files['visualization']}")
 print("\n📝 Next: Edit the YAML file to define your planned structure!")
 print("="*70 + "\n")
 
-print("\n✅ Complete analysis finished! Check data/reports/, data/plans/, and data/plots/")
+print("\n✅ Complete analysis finished! Check 02_planning/")

@@ -38,18 +38,22 @@ class StructureVisualizer:
             output_dir: Directory for output files (uses new structure if None)
             dataset_name: Dataset name (required if output_dir is None)
         """
-        if output_dir is None:
-            if dataset_name:
-                from .paths import get_project_paths
-                paths = get_project_paths(dataset_name)
-                output_dir = paths.plots
-            else:
-                output_dir = Path("data/2_plans")
-        self.output_dir = Path(output_dir)
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        if dataset_name is None:
+            raise ValueError("dataset_name must be provided")
+
+        self.dataset_name = dataset_name
+
+        try:
+            from .paths import get_project_paths  # normal package import
+        except ImportError:
+            # Running as a script → fall back to absolute import from src
+            from paths import get_project_paths
+
+        self.paths = get_project_paths(dataset_name)
+        self.output_dir = self.paths.plots
 
         # Set matplotlib style for clean look
-        plt.style.use('seaborn-v0_8-whitegrid')
+        plt.style.use("seaborn-v0_8-white")
 
     def visualize_comparison(
             self,
@@ -76,7 +80,7 @@ class StructureVisualizer:
                        "unknown_dataset"
 
         # Create dataset specific subdirectory: data/plots/HSRM_.../
-        dataset_plot_dir = self.output_dir / dataset_name
+        dataset_plot_dir = self.output_dir
         dataset_plot_dir.mkdir(parents = True, exist_ok = True)
 
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (20, 12))
@@ -111,7 +115,7 @@ class StructureVisualizer:
         plt.tight_layout(rect = [0, 0.03, 1, 0.96])
 
         # Save with version in filename
-        output_path = dataset_plot_dir / f"structure_comparison_v{version}.png"
+        output_path = self.paths.get_visualization_path(version)
         plt.savefig(
             output_path,
             dpi = 300,

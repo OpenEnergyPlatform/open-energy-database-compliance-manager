@@ -145,10 +145,14 @@ cython_debug/
 .idea/
 
 # Data files
-data/1_raw/
-!data/1_raw/.gitkeep
-data/2_plans/
-!data/2_plans/.gitkeep
+data/
+!data/.gitkeep
+data/0_raw/
+!data/0_raw/.gitkeep
+data/1_analysis/
+!data/1_analysis/.gitkeep
+data/2_planning/
+!data/2_planning/.gitkeep
 data/3_results/
 !data/3_results/.gitkeep
 

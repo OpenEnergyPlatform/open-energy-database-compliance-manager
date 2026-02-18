@@ -22,6 +22,8 @@ class ValidationLogger:
     """
 
     def __init__(self, dataset_name: str, output_dir: Path = None):
+        self.dataset_name = dataset_name
+        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
         """
         Initialize logger for a dataset validation run.
 
@@ -29,22 +31,13 @@ class ValidationLogger:
             dataset_name: Name of the dataset being validated
             output_dir: Directory for log files (default: data/reports/)
         """
-        self.dataset_name = dataset_name
-        self.timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+        from .paths import get_project_paths
+        paths = get_project_paths(dataset_name)
 
-        # Setup output directory
-        if output_dir is None:
-            output_dir = Path("data/reports")
-        else:
-            base_dir = Path(output_dir)
-
-        self.output_dir = base_dir / dataset_name
+        self.output_dir = paths.reports / dataset_name
         self.output_dir.mkdir(parents = True, exist_ok = True)
 
-        # Create base filename
         self.base_filename = f"{self.timestamp}_{dataset_name}"
-
-        # Setup file logger
         self.log_file = self.output_dir / f"{self.base_filename}.log"
         self.json_file = self.output_dir / f"{self.base_filename}.json"
 

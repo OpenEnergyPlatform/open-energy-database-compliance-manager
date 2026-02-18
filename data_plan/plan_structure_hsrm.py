@@ -1,7 +1,7 @@
 """Open Energy Database Compliance Manager
 
 Main script for structure planning workflow.
-DataPacake HSRM.
+DataPackage HSRM.
 
 SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
 SPDX-License-Identifier: MIT
@@ -12,6 +12,8 @@ from oedbcm import DataPackage
 from oedbcm.planner import TransformationPlanner
 from oedbcm.file_classifier import ResourceType
 from oedbcm.structure_schema import StructurePlan
+from oedbcm.logger import ValidationLogger
+from oedbcm.package import DataPackage
 import sys
 
 
@@ -28,6 +30,9 @@ def main_planning_workflow(
         version: Version string for this plan
         description: Description of planning iteration
     """
+    logger = ValidationLogger(dataset_name = package.dataset_name)
+    logger.log_start(dataset_path, len(package.resources))
+
     print("\n" + "=" * 80)
     print("STRUCTURE PLANNING WORKFLOW")
     print("=" * 80 + "\n")
@@ -109,6 +114,10 @@ def main_planning_workflow(
     print("   4. Increment version and regenerate visualization")
     print("\n" + "=" * 80 + "\n")
 
+    results = package.validate()
+    logger.save_json_report(results)
+    logger.append_to_history()
+
     return plan, output_files
 
 
@@ -169,7 +178,7 @@ if __name__ == "__main__":
     # Example usage - adjust paths as needed
 
     # Configuration
-    dataset_path = Path("data/raw/HSRM_Messdaten_Brennstoffzelle")
+    dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle")
 
     # Check if dataset exists
     if not dataset_path.exists():
@@ -180,7 +189,7 @@ if __name__ == "__main__":
     # Run main workflow
     plan, files = main_planning_workflow(
         dataset_path = dataset_path,
-        version = "0.4.0",
+        version = "0.5.0",
         description = "Planning structure for HSRM fuel cell measurements"
     )
 

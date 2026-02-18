@@ -16,6 +16,7 @@ from .visualizer import StructureVisualizer
 from .structure_schema import StructurePlan
 from .file_classifier import ResourceClassifier, ResourceType
 from .digester import MetadataDigester, DigestConfig
+from .logger import ValidationLogger
 import json
 
 
@@ -24,14 +25,16 @@ class TransformationPlanner:
 
     def __init__(self, package: DataPackage):
         self.package = package
+        self.paths = get_project_paths(package.dataset_name)
         self.col_analyzer = ColumnAnalyzer(package)
         self.file_analyzer = FileNameAnalyzer(package)
-        self.visualizer = StructureVisualizer()
+        self.visualizer = StructureVisualizer(dataset_name=package.dataset_name)
+        self.logger = ValidationLogger(dataset_name = package.dataset_name)
         self.current_plan: StructurePlan = None
         self.classifier = ResourceClassifier()
         self.catalog = None
         self.digester = MetadataDigester()
-        self.paths = get_project_paths(package.dataset_name)
+
 
     def analyze_and_plan(self) -> Dict[str, Any]:
         """

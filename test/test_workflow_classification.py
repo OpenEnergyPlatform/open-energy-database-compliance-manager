@@ -90,7 +90,7 @@ def workflow_classification(dataset_path: Path):
 
 
 if __name__ == "__main__":
-    dataset_path = Path("data/raw/HSRM_Messdaten_Brennstoffzelle")
+    dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle")
 
     if not dataset_path.exists():
         print(f"❌ Dataset not found: {dataset_path}")
