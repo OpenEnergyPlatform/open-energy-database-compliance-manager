@@ -40,6 +40,47 @@ class OEMetadataBuilder:
         from .paths import get_project_paths
         self.paths = get_project_paths(dataset_name)
 
+    def _save_draft_and_copy(
+            self,
+            draft_data: Dict[str, Any],
+            section: str
+    ) -> Dict[str, Path]:
+        """
+        Save draft and create editable copy (only if not exists).
+
+        Args:
+            draft_data: Data to save
+            section: Section name
+
+        Returns:
+            Dict with 'draft' and 'final' paths
+        """
+        import yaml
+
+        # Save draft
+        draft_path = self.paths.get_metadata_draft_path(section)
+        with open(draft_path, 'w', encoding = 'utf-8') as f:
+            yaml.dump(draft_data, f, default_flow_style = False,
+                      allow_unicode = True, sort_keys = False)
+
+        # Create copy for editing (only if doesn't exist)
+        final_path = self.paths.get_metadata_path(section)
+
+        if not final_path.exists():
+            with open(final_path, 'w', encoding = 'utf-8') as f:
+                yaml.dump(draft_data, f, default_flow_style = False,
+                          allow_unicode = True, sort_keys = False)
+            print(f"✅ {section:<20} draft: {draft_path}")
+            print(f"   {section:<20} edit:  {final_path} (created)")
+        else:
+            print(f"✅ {section:<20} draft: {draft_path}")
+            print(f"   {section:<20} edit:  {final_path} (exists, not overwritten)")
+
+        return {
+            'draft': draft_path,
+            'final': final_path
+        }
+
     def create_general_keys_draft(
             self,
             title: str = None,
@@ -80,13 +121,8 @@ class OEMetadataBuilder:
             }
         }
 
-        output_path = self.paths.get_metadata_draft_path('general_keys')
-        with open(output_path, 'w', encoding = 'utf-8') as f:
-            yaml.dump(draft, f, default_flow_style = False, allow_unicode = True,
-                      sort_keys = False)
-
-        print(f"✅ General keys draft: {output_path}")
-        return output_path
+        paths = self._save_draft_and_copy(draft, 'general_keys')
+        return paths['draft']
 
     def create_context_draft(
             self,
@@ -107,13 +143,8 @@ class OEMetadataBuilder:
             'publisherLogo': None
         }
 
-        output_path = self.paths.get_metadata_draft_path('context')
-        with open(output_path, 'w', encoding = 'utf-8') as f:
-            yaml.dump(draft, f, default_flow_style = False, allow_unicode = True,
-                      sort_keys = False)
-
-        print(f"✅ Context draft: {output_path}")
-        return output_path
+        paths = self._save_draft_and_copy(draft, 'context')
+        return paths['draft']
 
     def create_spatial_temporal_draft(
             self,
@@ -138,13 +169,8 @@ class OEMetadataBuilder:
             }
         }
 
-        output_path = self.paths.get_metadata_draft_path('spatial_temporal')
-        with open(output_path, 'w', encoding = 'utf-8') as f:
-            yaml.dump(draft, f, default_flow_style = False, allow_unicode = True,
-                      sort_keys = False)
-
-        print(f"✅ Spatial/Temporal draft: {output_path}")
-        return output_path
+        paths = self._save_draft_and_copy(draft, 'spatial_temporal')
+        return paths['draft']
 
     def create_contributors_draft(
             self,
@@ -169,13 +195,8 @@ class OEMetadataBuilder:
             'contributors': [contributor_template]
         }
 
-        output_path = self.paths.get_metadata_draft_path('contributors')
-        with open(output_path, 'w', encoding = 'utf-8') as f:
-            yaml.dump(draft, f, default_flow_style = False, allow_unicode = True,
-                      sort_keys = False)
-
-        print(f"✅ Contributors draft: {output_path}")
-        return output_path
+        paths = self._save_draft_and_copy(draft, 'contributors')
+        return paths['draft']
 
     def create_sources_draft(
             self,
@@ -198,13 +219,8 @@ class OEMetadataBuilder:
             'sources': [source_template]
         }
 
-        output_path = self.paths.get_metadata_draft_path('sources')
-        with open(output_path, 'w', encoding = 'utf-8') as f:
-            yaml.dump(draft, f, default_flow_style = False, allow_unicode = True,
-                      sort_keys = False)
-
-        print(f"✅ Sources draft: {output_path}")
-        return output_path
+        paths = self._save_draft_and_copy(draft, 'sources')
+        return paths['draft']
 
     def create_licenses_draft(
             self,
@@ -235,13 +251,8 @@ class OEMetadataBuilder:
                                                license_templates['CC-BY-4.0'])]
         }
 
-        output_path = self.paths.get_metadata_draft_path('licenses')
-        with open(output_path, 'w', encoding = 'utf-8') as f:
-            yaml.dump(draft, f, default_flow_style = False, allow_unicode = True,
-                      sort_keys = False)
-
-        print(f"✅ Licenses draft: {output_path}")
-        return output_path
+        paths = self._save_draft_and_copy(draft, 'licenses')
+        return paths['draft']
 
     def create_all_drafts(
             self,
@@ -310,12 +321,18 @@ class OEMetadataBuilder:
             print(f"❌ Error creating licenses: {e}")
 
         print("\n" + "=" * 70)
-        print("DRAFTS CREATED - Please review and edit:")
+        print("OEMETADATA FILES CREATED")
         print("=" * 70)
-        for section, path in drafts.items():
-            if path:  # Only show successful ones
-                print(f"  {section:<20} {path}")
-        print("\nAfter editing, save with same name without '_draft' suffix")
+        print("\nGenerated files:")
+        for section in ['general_keys', 'context', 'spatial_temporal',
+                        'contributors', 'sources', 'licenses']:
+            if section in drafts:
+                print(f"  {section}")
+                print(f"    - Draft:  {self.paths.get_metadata_draft_path(section)}")
+                print(f"    - Edit:   {self.paths.get_metadata_path(section)}")
+
+        print("\n📝 Edit the files without '_draft' suffix")
+        print("   Drafts are for reference only")
         print("=" * 70 + "\n")
 
         return drafts

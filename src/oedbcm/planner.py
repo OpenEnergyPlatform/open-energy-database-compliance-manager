@@ -9,6 +9,7 @@ SPDX-License-Identifier: MIT
 
 from pathlib import Path
 from typing import Dict, List, Any
+from datetime import datetime
 from .paths import get_project_paths
 from .package import DataPackage
 from .analyzer import ColumnAnalyzer, FileNameAnalyzer
@@ -472,6 +473,481 @@ class TransformationPlanner:
         print(f"   Source files: {len(data_resources)}")
 
         return plan
+
+    def save_grouped_structures(
+            self,
+            version: str = "0.1.0",
+            description: str = "Grouped structure plans"
+    ) -> Dict[int, Dict[str, Path]]:
+        """
+        Save each structure group as separate YAML files.
+
+        Creates draft and target files for each group.
+
+        Args:
+            version: Version string
+            description: Description for the plans
+
+        Returns:
+            Dict mapping group_number to dict of file paths
+        """
+        from .file_classifier import ResourceType
+        import yaml
+        import json
+
+        # Get structure groups
+        structure_groups = self.col_analyzer.get_column_structure_groups()
+
+        # Filter only DATA and ADDITIONAL_DATA resources
+        filtered_groups = {}
+
+        for group_name, group_info in structure_groups.items():
+            # Check if any file in this group is DATA or ADDITIONAL_DATA
+            group_resources = []
+            for filename in group_info['files']:
+                for resource in self.package.resources:
+                    if resource.path.name == filename:
+                        if resource.classification in [ResourceType.DATA,
+                                                       ResourceType.ADDITIONAL_DATA]:
+                            group_resources.append(resource)
+                        break
+
+            if group_resources:
+                filtered_groups[group_name] = {
+                    'info': group_info,
+                    'resources': group_resources
+                }
+
+        if not filtered_groups:
+            print("⚠️  No DATA/ADDITIONAL_DATA groups found")
+            return {}
+
+        print(f"\n📊 Saving {len(filtered_groups)} structure groups...")
+
+        output_files = {}
+
+        for group_idx, (group_name, group_data) in enumerate(filtered_groups.items(),
+                                                             1):
+            group_info = group_data['info']
+            resources_list = group_data['resources']
+
+            # Extract structure for this group
+            group_structure = {
+                'group_number': group_idx,
+                'group_name': group_name,
+                'file_count': len(group_info['files']),
+                'columns': group_info['columns'],
+                'resources': []
+            }
+
+            # Add resources with OEMetadata fields
+            for resource in resources_list:
+                fields = []
+                if resource.column_names:
+                    for col_name in resource.column_names:
+                        if self.digester:
+                            field = self.digester.digest_field(col_name)
+                        else:
+                            field = {
+                                'name': col_name,
+                                'type': 'string',
+                                'description': col_name
+                            }
+                        fields.append(field)
+
+                resource_dict = {
+                    'name': resource.path.name,
+                    'path': str(resource.path),
+                    'format': resource.file_type.upper(),
+                    'encoding': getattr(resource, 'detected_encoding', 'utf-8'),
+                    'rows': resource.n_rows or 0,
+                    'columns': resource.n_columns or 0,
+                    'schema': {
+                        'fields': fields,
+                        'primaryKey': [],
+                        'foreignKeys': []
+                    },
+                    'classification': resource.classification.value if resource.classification else None,
+                    'target_table': getattr(resource, 'target_table', '')
+                }
+                group_structure['resources'].append(resource_dict)
+
+            # Metadata for this group
+            metadata = {
+                'dataset_name': self.package.dataset_name,
+                'version': version,
+                'description': f"{description} - Group {group_idx}",
+                'created_at': datetime.now().isoformat(),
+                'group_number': group_idx
+            }
+
+            # Create draft data
+            draft_data = {
+                'metadata': metadata,
+                'structure': group_structure
+            }
+
+            # Clean data (avoid YAML anchors)
+            draft_clean = json.loads(json.dumps(draft_data))
+
+            # Save draft file
+            draft_path = self.paths.structure / f"{self.package.dataset_name}_v{version}_structure_group{group_idx}_draft.yaml"
+            with open(draft_path, 'w', encoding = 'utf-8') as f:
+                yaml.dump(draft_clean, f, default_flow_style = False,
+                          allow_unicode = True, sort_keys = False)
+
+            # Save target file (only if doesn't exist)
+            target_path = self.paths.structure / f"{self.package.dataset_name}_v{version}_structure_group{group_idx}_target.yaml"
+
+            if not target_path.exists():
+                with open(target_path, 'w', encoding = 'utf-8') as f:
+                    yaml.dump(draft_clean, f, default_flow_style = False,
+                              allow_unicode = True, sort_keys = False)
+                status = "(created)"
+            else:
+                status = "(exists, not overwritten)"
+
+            print(
+                f"  Group {group_idx}: {len(group_info['files'])} files, {len(group_info['columns'])} columns")
+            print(f"    - Draft:  {draft_path}")
+            print(f"    - Target: {target_path} {status}")
+
+            output_files[group_idx] = {
+                'draft': draft_path,
+                'target': target_path,
+                'file_count': len(group_info['files']),
+                'column_count': len(group_info['columns'])
+            }
+
+        print(f"\n✅ Saved {len(output_files)} grouped structures")
+        return output_files
+
+    def create_table_overview(
+            self,
+            version: str = "0.1.0",
+            include_all: bool = False
+    ) -> Path:
+        """
+        Create CSV overview of all tables and their standardized column names.
+
+        Args:
+            version: Version string
+            include_all: If True, include all resources. If False, only DATA/ADDITIONAL_DATA
+
+        Returns:
+            Path to created CSV file
+        """
+        import csv
+        from .file_classifier import ResourceType
+
+        # Filter resources
+        resources_to_process = []
+        for resource in self.package.resources:
+            if include_all:
+                resources_to_process.append(resource)
+            else:
+                if resource.classification in [ResourceType.DATA,
+                                               ResourceType.ADDITIONAL_DATA]:
+                    resources_to_process.append(resource)
+
+        if not resources_to_process:
+            print("⚠️  No resources to process")
+            return None
+
+        # Collect all unique standardized column names
+        all_columns = set()
+        table_columns = {}
+
+        for resource in resources_to_process:
+            if not resource.column_names:
+                continue
+
+            standardized_cols = []
+            for col_name in resource.column_names:
+                if self.digester:
+                    std_name = self.digester.standardize_column_name(col_name)
+                else:
+                    std_name = col_name.lower().replace(' ', '_')
+                standardized_cols.append(std_name)
+                all_columns.add(std_name)
+
+            table_columns[resource.path.name] = {
+                'columns': standardized_cols,
+                'rows': resource.n_rows or 0,
+                'classification': resource.classification.value if resource.classification else 'Unknown',
+                'target_table': getattr(resource, 'target_table', ''),
+                'group_number': resource.group_number
+            }
+
+        # Sort columns alphabetically
+        sorted_columns = sorted(all_columns)
+
+        # Create CSV with matrix: rows=tables, cols=column names
+        output_path = self.paths.catalogs / f"{self.package.dataset_name}_v{version}_detail_table.csv"
+
+        with open(output_path, 'w', newline = '', encoding = 'utf-8') as f:
+            writer = csv.writer(f)
+
+            # Header row
+            header = ['Table', 'Rows', 'Classification', 'Target_Table', 'Group',
+                      'Column_Count'] + sorted_columns
+            writer.writerow(header)
+
+            # Data rows
+            for table_name in sorted(table_columns.keys()):
+                info = table_columns[table_name]
+                row = [
+                    table_name,
+                    info['rows'],
+                    info['classification'],
+                    info['target_table'] or '',
+                    info['group_number'] or '',
+                    len(info['columns'])
+                ]
+
+                # Mark columns that exist in this table
+                for col in sorted_columns:
+                    if col in info['columns']:
+                        row.append('X')
+                    else:
+                        row.append('')
+
+                writer.writerow(row)
+
+        print(f"✅ Table overview: {output_path}")
+        print(f"   Tables: {len(table_columns)}")
+        print(f"   Unique columns: {len(all_columns)}")
+
+        return output_path
+
+    def create_group_overview(
+            self,
+            version: str = "0.1.0"
+    ) -> Path:
+        """
+        Create CSV overview of structure groups and their columns.
+
+        Shows which columns appear in each group.
+
+        Args:
+            version: Version string
+
+        Returns:
+            Path to created CSV file
+        """
+        import csv
+        from .file_classifier import ResourceType
+
+        # Get structure groups
+        structure_groups = self.col_analyzer.get_column_structure_groups()
+
+        # Filter only DATA and ADDITIONAL_DATA resources
+        filtered_groups = {}
+
+        for group_name, group_info in structure_groups.items():
+            # Check if any file in this group is DATA or ADDITIONAL_DATA
+            group_resources = []
+            for filename in group_info['files']:
+                for resource in self.package.resources:
+                    if resource.path.name == filename:
+                        if resource.classification in [ResourceType.DATA,
+                                                       ResourceType.ADDITIONAL_DATA]:
+                            group_resources.append(resource)
+                        break
+
+            if group_resources:
+                filtered_groups[group_name] = {
+                    'info': group_info,
+                    'resources': group_resources
+                }
+
+        if not filtered_groups:
+            print("⚠️  No DATA/ADDITIONAL_DATA groups found")
+            return None
+
+        # Collect all unique columns across all groups
+        all_columns = set()
+        group_columns = {}
+
+        for group_idx, (group_name, group_data) in enumerate(filtered_groups.items(),
+                                                             1):
+            group_info = group_data['info']
+            resources_list = group_data['resources']
+
+            # Standardize column names for this group
+            standardized_cols = []
+            for col_name in group_info['columns']:
+                if self.digester:
+                    std_name = self.digester.standardize_column_name(col_name)
+                else:
+                    std_name = col_name.lower().replace(' ', '_')
+                standardized_cols.append(std_name)
+                all_columns.add(std_name)
+
+            # Get target tables from resources
+            target_tables = set()
+            for res in resources_list:
+                if hasattr(res, 'target_table') and res.target_table:
+                    target_tables.add(res.target_table)
+
+            group_columns[group_idx] = {
+                'group_name': group_name,
+                'columns': standardized_cols,
+                'file_count': len(group_info['files']),
+                'files': group_info['files'],
+                'target_tables': ', '.join(
+                    sorted(target_tables)) if target_tables else ''
+            }
+
+        # Sort columns alphabetically
+        sorted_columns = sorted(all_columns)
+
+        # Create CSV with matrix: rows=groups, cols=column names
+        output_path = self.paths.catalogs / f"{self.package.dataset_name}_v{version}_detail_group.csv"
+
+        with open(output_path, 'w', newline = '', encoding = 'utf-8') as f:
+            writer = csv.writer(f)
+
+            # Header row
+            header = ['Group', 'Files', 'Target_Tables',
+                      'Column_Count'] + sorted_columns
+            writer.writerow(header)
+
+            # Data rows
+            for group_num in sorted(group_columns.keys()):
+                info = group_columns[group_num]
+                row = [
+                    f"Group {group_num}",
+                    info['file_count'],
+                    info['target_tables'],
+                    len(info['columns'])
+                ]
+
+                # Mark columns that exist in this group
+                for col in sorted_columns:
+                    if col in info['columns']:
+                        row.append('X')
+                    else:
+                        row.append('')
+
+                writer.writerow(row)
+
+            # Add separator row
+            writer.writerow([])
+
+            # Add detailed file listing per group
+            writer.writerow(['Group Details'])
+            writer.writerow(['Group', 'Files in Group'])
+
+            for group_num in sorted(group_columns.keys()):
+                info = group_columns[group_num]
+                for idx, filename in enumerate(info['files']):
+                    if idx == 0:
+                        writer.writerow([f"Group {group_num}", filename])
+                    else:
+                        writer.writerow(['', filename])
+
+        print(f"✅ Group overview: {output_path}")
+        print(f"   Groups: {len(group_columns)}")
+        print(f"   Unique columns: {len(all_columns)}")
+
+        return output_path
+
+    def create_column_detail_list(
+            self,
+            version: str = "0.1.0"
+    ) -> Path:
+        """
+        Create detailed list of all columns with their metadata.
+
+        Shows original name, standardized name, type, unit, description.
+
+        Args:
+            version: Version string
+
+        Returns:
+            Path to created CSV file
+        """
+        import csv
+        from .file_classifier import ResourceType
+
+        # Collect all unique columns with their metadata
+        columns_detail = {}
+
+        for resource in self.package.resources:
+            if not resource.column_names:
+                continue
+
+            # Only process DATA and ADDITIONAL_DATA
+            if resource.classification not in [ResourceType.DATA,
+                                               ResourceType.ADDITIONAL_DATA]:
+                continue
+
+            for col_name in resource.column_names:
+                if self.digester:
+                    field = self.digester.digest_field(col_name)
+                    std_name = field['name']
+
+                    # Only add if not already present (use first occurrence)
+                    if std_name not in columns_detail:
+                        columns_detail[std_name] = {
+                            'original_name': col_name,
+                            'standardized_name': std_name,
+                            'type': field.get('type', 'unknown'),
+                            'unit': field.get('unit', ''),
+                            'description': field.get('description', col_name),
+                            'appears_in': []
+                        }
+
+                    # Track which tables use this column
+                    columns_detail[std_name]['appears_in'].append(resource.path.name)
+                else:
+                    std_name = col_name.lower().replace(' ', '_')
+                    if std_name not in columns_detail:
+                        columns_detail[std_name] = {
+                            'original_name': col_name,
+                            'standardized_name': std_name,
+                            'type': 'unknown',
+                            'unit': '',
+                            'description': col_name,
+                            'appears_in': [resource.path.name]
+                        }
+
+        # Create CSV
+        output_path = self.paths.catalogs / f"{self.package.dataset_name}_v{version}_detail_column.csv"
+
+        with open(output_path, 'w', newline = '', encoding = 'utf-8') as f:
+            writer = csv.writer(f)
+
+            # Header
+            writer.writerow([
+                'Standardized_Name',
+                'Original_Name',
+                'Type',
+                'Unit',
+                'Description',
+                'Table_Count',
+                'Appears_In'
+            ])
+
+            # Data rows (sorted by standardized name)
+            for std_name in sorted(columns_detail.keys()):
+                info = columns_detail[std_name]
+                writer.writerow([
+                    info['standardized_name'],
+                    info['original_name'],
+                    info['type'],
+                    info['unit'] or '',
+                    info['description'],
+                    len(info['appears_in']),
+                    '; '.join(info['appears_in'][:3]) + (
+                        '...' if len(info['appears_in']) > 3 else '')
+                ])
+
+        print(f"✅ Column details: {output_path}")
+        print(f"   Unique columns: {len(columns_detail)}")
+
+        return output_path
 
     def assign_groups_by_structure(
             self,

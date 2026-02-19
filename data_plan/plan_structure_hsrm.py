@@ -97,15 +97,72 @@ def main_planning_workflow(
         print(f"   {file_type}: {file_path}")
 
     print("\n📝 Next steps:")
-    print("   1. Review the visualization PNG")
-    print("   2. Edit the YAML file to define your planned structure")
-    print("   3. Update resource mappings and group assignments")
-    print("   4. Increment version and regenerate visualization")
-    print("\n" + "=" * 80 + "\n")
+    print("   1. Review catalog and set 'target_table' for DATA files:")
+    print(f"      {classification_result['catalog_path']}")
+    print("   2. Review and edit grouped structures:")
+    print(
+        f"      data/2_planning/{package.dataset_name}/structure/structure_group*_target.yaml")
+    print("   3. Review and edit OEMetadata sections:")
+    print(f"      data/2_planning/{package.dataset_name}/metadata/oemetadata_*.yaml")
+    print("   4. Review visualization:")
+    print(f"      {output_files.get('visualization', 'N/A')}")
 
-    # Step 5: Create OEMetadata drafts
-    print("📄 Step 5: Creating OEMetadata section drafts...")
+    # Step 5: Save grouped structures
+    print("📊 Step 5: Saving grouped structures...")
+    grouped_files = planner.save_grouped_structures(
+        version = version,
+        description = "Structure groups for HSRM measurements"
+    )
+    print()
+
+    # Step 6: Create OEMetadata drafts
+    print("📄 Step 6: Creating OEMetadata section drafts...")
     from oedbcm.metadata_builder import OEMetadataBuilder
+
+    builder = OEMetadataBuilder(package.dataset_name)
+    metadata_drafts = builder.create_all_drafts(
+        title = f"HSRM Fuel Cell Measurements",
+        description = description,
+        contributor_name = "HSRM",
+        contributor_email = "contact@example.com"
+    )
+    print()
+
+    # Step 7: Create overview tables
+    print("📊 Step 7: Creating overview tables...")
+
+    # Table overview (matrix)
+    table_overview_path = planner.create_table_overview(version = version)
+
+    # Group overview (matrix)
+    group_overview_path = planner.create_group_overview(version = version)
+
+    # Column details (list)
+    column_detail_path = planner.create_column_detail_list(version = version)
+
+    print()
+
+    print("\n✅ Planning workflow complete!")
+    print("-" * 80)
+    print("Generated files:")
+    print(f"\n📋 Catalog:")
+    print(f"   {classification_result['catalog_path']}")
+
+    print(f"\n📊 Overviews (in reports/):")
+    print(f"   - Table overview:  {table_overview_path}")
+    print(f"   - Group overview:  {group_overview_path}")
+    print(f"   - Column details:  {column_detail_path}")
+
+    print(f"\n📁 Structure plans:")
+    for file_type, file_path in output_files.items():
+        print(f"   {file_type}: {file_path}")
+
+    print(f"\n🗂️  Grouped structures: {len(grouped_files)} groups")
+    for group_num, paths in grouped_files.items():
+        print(
+            f"     Group {group_num}: {paths['file_count']} files, {paths['column_count']} columns")
+
+    print(f"\n📄 OEMetadata sections: {len(metadata_drafts)}")
 
     builder = OEMetadataBuilder(package.dataset_name)
     metadata_drafts = builder.create_all_drafts(
@@ -187,7 +244,7 @@ if __name__ == "__main__":
     # Run main workflow
     plan, files = main_planning_workflow(
         dataset_path = dataset_path,
-        version = "0.6.0",
+        version = "0.9.0",
         description = "Planning structure for HSRM fuel cell measurements"
     )
 

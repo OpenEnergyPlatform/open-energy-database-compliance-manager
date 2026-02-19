@@ -30,8 +30,8 @@ class ProjectPaths:
     # Base directories
     BASE_DATA = Path("data")
     RAW = BASE_DATA / "0_raw"
-    PLANS = BASE_DATA / "2_planning"
-    RESULTS = BASE_DATA / "3_results"
+    PLANS = BASE_DATA / "1_planning"
+    RESULTS = BASE_DATA / "2_results"
 
     def __init__(self, dataset_name: str):
         """
@@ -42,10 +42,9 @@ class ProjectPaths:
         """
         self.dataset_name = dataset_name
 
-        # Dataset-specific planning directory
+        # Dataset-specific directories
         self.dataset_plans = self.PLANS / dataset_name
 
-        # Sub-directories under plans
         self.catalogs = self.dataset_plans / "catalogs"
         self.plots = self.dataset_plans / "plots"
         self.reports = self.dataset_plans / "reports"
@@ -54,6 +53,7 @@ class ProjectPaths:
 
         # Results directory
         self.dataset_results = self.RESULTS / dataset_name
+        self.config = self.dataset_results / "config"
 
     def ensure_all(self):
         """Create all directories if they don't exist."""
@@ -76,8 +76,8 @@ class ProjectPaths:
             version: Version string. If None, returns unversioned path.
         """
         if version:
-            return self.catalogs / f"{self.dataset_name}_v{version}_draft.csv"
-        return self.catalogs / f"{self.dataset_name}_draft.csv"
+            return self.catalogs / f"{self.dataset_name}_v{version}_catalog_draft.csv"
+        return self.catalogs / f"{self.dataset_name}_catalog_draft.csv"
 
     def get_catalog_path(self, version: str = None) -> Path:
         """
@@ -110,15 +110,15 @@ class ProjectPaths:
 
     def get_structure_current_path(self, version: str) -> Path:
         """Get path for current structure YAML."""
-        return self.structure / f"structure_current_{self.dataset_name}_v{version}.yaml"
+        return self.structure / f"{self.dataset_name}_v{version}_structure_dataset_current.yaml"
 
     def get_structure_plan_path(self, version: str) -> Path:
         """Get path for planned structure YAML."""
-        return self.structure / f"structure_plan_{self.dataset_name}_v{version}.yaml"
+        return self.structure / f"{self.dataset_name}_v{version}_structure_dataset_plan.yaml"
 
     def get_visualization_path(self, version: str) -> Path:
         """Get path for structure visualization PNG."""
-        return self.plots / f"structure_comparison_v{version}.png"
+        return self.plots / f"{self.dataset_name}_v{version}_structure_comparison.png"
 
     def get_metadata_draft_path(self, section: str) -> Path:
         """

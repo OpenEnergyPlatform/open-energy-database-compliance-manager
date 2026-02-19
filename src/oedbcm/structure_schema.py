@@ -159,8 +159,8 @@ class StructurePlan:
             base_dir = Path(output_dir)
             target_dir = base_dir / self.dataset_name
             target_dir.mkdir(parents = True, exist_ok = True)
-            current_path = target_dir / f"structure_current_{self.dataset_name}_v{self.version}.yaml"
-            planned_path = target_dir / f"structure_plan_{self.dataset_name}_v{self.version}.yaml"
+            current_path = target_dir / f"{self.dataset_name}_v{self.version}_structure_current.yaml"
+            planned_path = target_dir / f"{self.dataset_name}_v{self.version}_structure_plan.yaml"
 
         # Speichern unter Verwendung der vorhandenen Datenstruktur
         # (Da _prepare_for_export fehlt, nutzen wir direkt die dicts)
