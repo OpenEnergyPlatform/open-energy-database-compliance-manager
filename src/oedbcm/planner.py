@@ -955,16 +955,7 @@ class TransformationPlanner:
     ) -> Dict[int, List[str]]:
         """
         Automatically assign group_number to resources with identical structure.
-
         Only processes DATA and ADDITIONAL_DATA resources by default.
-
-        Args:
-            filter_by_classification: If True, only group DATA and ADDITIONAL_DATA
-
-        Updates the resource.group_number attribute for all resources.
-
-        Returns:
-            Dict mapping group_number to list of resource names
         """
         # Filter resources first if classification is enabled
         if filter_by_classification:
@@ -976,21 +967,62 @@ class TransformationPlanner:
             if filtered_resources:
                 print(
                     f"   Grouping {len(filtered_resources)}/{len(self.package.resources)} resources (DATA + ADDITIONAL_DATA only)")
-
         structure_groups = self.col_analyzer.get_column_structure_groups()
         groups = {}
+        # Assign group numbers based on structure similarity
+        for group_idx, (group_name, group_info) in enumerate(structure_groups.items(),
+                                                             1):
+            group_files = []
+            for filename in group_info['files']:
+                for resource in self.package.resources:
+                    if resource.path.name == filename:
+                        # Apply filter if enabled
+                        if filter_by_classification:
+                            if resource.classification not in [
+                                ResourceType.DATA, ResourceType.ADDITIONAL_DATA
+                            ]:
+                                continue
+                        resource.group_number = group_idx
+                        group_files.append(resource.path.name)
+                        break
+            if group_files:
+                groups[group_idx] = group_files
+        return groups
 
-    def create_catalog_draft(self, output_dir: Path = None, version: str = "0.1.0") -> Dict[str, Any]:
+    def create_catalog_draft(
+            self,
+            output_dir: Path = None,
+            version: str = "0.1.0",
+            auto_assign_groups: bool = True
+    ) -> Dict[str, Any]:
         """
-        Create classification catalog draft.
+        Create classification catalog with optional group assignment.
 
         Args:
-            output_dir: Output directory (default: data/catalogs/)
+            output_dir: Output directory
+            version: Version string
+            auto_assign_groups: If True, assign groups before creating catalog
 
         Returns:
-            Classification results
+            Classification results with paths
         """
-        return self.classifier.classify_package(self.package, output_dir, version)
+        # Assign groups first if requested
+        group_mapping = {}
+        if auto_assign_groups:
+            print("   Assigning structure groups for catalog...")
+            groups = self.assign_groups_by_structure()
+
+            # Create mapping filename -> group_number
+            for resource in self.package.resources:
+                if hasattr(resource, 'group_number') and resource.group_number:
+                    group_mapping[resource.path.name] = resource.group_number
+
+        return self.classifier.classify_package(
+            self.package,
+            output_dir,
+            version,
+            group_mapping
+        )
 
     def load_catalog(self, catalog_path: Path = None) -> int:
         """

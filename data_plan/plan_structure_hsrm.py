@@ -16,6 +16,32 @@ from oedbcm.package import DataPackage
 import sys
 
 
+def ask_user_confirmation(question: str, default: str = 'y') -> bool:
+    """
+    Ask user for yes/no confirmation.
+
+    Args:
+        question: Question to ask
+        default: Default answer ('y' or 'n')
+
+    Returns:
+        True if yes, False if no
+    """
+    valid_responses = {'y': True, 'yes': True, 'n': False, 'no': False}
+
+    prompt = f"{question} [y/n, default={default}]: "
+
+    while True:
+        response = input(prompt).strip().lower()
+
+        if not response:
+            response = default
+
+        if response in valid_responses:
+            return valid_responses[response]
+
+        print("   Please answer 'y' or 'n'")
+
 def main_planning_workflow(
         dataset_path: Path,
         version: str = "0.1.0",
@@ -40,27 +66,55 @@ def main_planning_workflow(
     logger.log_start(dataset_path, len(package.resources))
     print(f"   Found {len(package.resources)} resources\n")
 
+    # 🔴 USER INPUT 1: Start planning?
+    print("📊 ANALYSIS COMPLETE")
+    print()
+
+    if not ask_user_confirmation("⏸️  Start planning phase?", default = 'y'):
+        print("\n⏹️  Planning aborted by user")
+        print("   Re-run script when ready to continue")
+        print("=" * 80 + "\n")
+        return None, {}
+    print()
+
     # Step 2: Create planner
     print("🔍 Step 2: Analyzing structure...")
     planner = TransformationPlanner(package)
 
     # Step 2a: Create classification catalog
     print("📋 Step 2a: Creating resource classification catalog...")
-    classification_result = planner.create_catalog_draft(version=version)
+    classification_result = planner.create_catalog_draft(
+        version=version,
+        auto_assign_groups=True)
 
     # Show classification summary
     print(f"\n   Classification breakdown:")
     for type_name, count in sorted(classification_result['type_counts'].items()):
         print(f"     • {type_name:<25} {count:>2} resources")
 
-    print(f"\n   📝 OPTIONAL: Review and edit catalog at:")
-    print(f"      {classification_result['draft_path']}")
+    print(f"\n   Catalog files:")
+    print(f"     Draft:  {classification_result['draft_path']}")
     print(
-        f"      Save as '{package.dataset_name}_catalog.csv' to use custom classification")
+        f"     Catalog: {classification_result['catalog_path']} ({classification_result['catalog_status']})")
+
+    # 🔴 USER INPUT 2: Classifications correct?
+    print()
+    print("📝 REVIEW CATALOG")
+    print("-" * 80)
+    print(f"   Please review: {classification_result['catalog_path']}")
+    print(f"   - Check 'type' column (Data, Metadata, Additional Data, etc.)")
+    print(f"   - Verify 'target_table' assignments (auto-filled with groups)")
+    print()
+
+    if not ask_user_confirmation("⏸️  All classifications correct?", default = 'n'):
+        print("\n⏸️  Please edit the catalog file and re-run the script")
+        print(f"   File: {classification_result['catalog_path']}")
+        print("=" * 80 + "\n")
+        return None, {}
+    print()
 
     # Load catalog
-    print(f"\n   ℹ️  Catalog created at: {classification_result['catalog_path']}")
-    print(f"   📝 Edit 'type' and 'target_table' columns as needed")
+    print(f"   ℹ️  Loading catalog...")
     planner.load_catalog(classification_result['catalog_path'])
     print()
 
@@ -69,9 +123,33 @@ def main_planning_workflow(
     package.analyze_all(filter_by_classification = True)
     print()
 
-    # Step 2c: Assign groups automatically based on structure similarity
-    print("🔍 Step 2c: Assigning structure groups...")
-    groups = planner.assign_groups_by_structure()
+    # Step 2c: Verify group assignments
+    print("🔍 Step 2c: Structure groups assigned")
+    print()
+
+    # Show group details
+    print("   Group assignments:")
+    for group_id, files in groups.items():
+        print(f"     Group {group_id}: {len(files)} files")
+        for filename in files[:3]:
+            print(f"       - {filename}")
+        if len(files) > 3:
+            print(f"       ... +{len(files) - 3} more")
+    print()
+
+    # 🔴 USER INPUT 3: Groups correct?
+    print("📊 REVIEW GROUPS")
+    print("-" * 80)
+    print(f"   {len(groups)} groups with identical column structures")
+    print()
+
+    if not ask_user_confirmation("⏸️  All group assignments correct?", default = 'y'):
+        print("\n⏸️  Group assignment needs manual review")
+        print("   Consider:")
+        print("   - Editing catalog 'target_table' column manually")
+        print("   - Re-running with corrected catalog")
+        print("=" * 80 + "\n")
+        return None, {}
     print()
 
     # Step 3: Create structure plan
@@ -242,20 +320,17 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Run main workflow
-    plan, files = main_planning_workflow(
+    result  = main_planning_workflow(
         dataset_path = dataset_path,
         version = "0.9.0",
         description = "Planning structure for HSRM fuel cell measurements"
     )
 
-    # Example: Load and update existing plan
-    # plan = load_and_update_plan(
-    #     yaml_path=Path("data/plans/structure_plan_HSRM_Messdaten_Brennstoffzelle_v0.1.0.yaml"),
-    #     increment_version='minor'  # Will become 0.2.0
-    # )
-    # plan.save_yaml()
+    # Check if user aborted
+    if result[0] is None:
+        print("Workflow was aborted. Exiting.")
+        sys.exit(0)
 
-    # Example: Just visualize existing plan
-    # visualize_existing_plan(
-    #     yaml_path=Path("data/plans/structure_plan_HSRM_Messdaten_Brennstoffzelle_v0.1.0.yaml")
-    # )
+    plan, files = result
+
+    print("\n🎉 All steps completed successfully!")

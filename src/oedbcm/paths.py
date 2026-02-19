@@ -69,23 +69,13 @@ class ProjectPaths:
             dir_path.mkdir(parents = True, exist_ok = True)
 
     def get_catalog_draft_path(self, version: str = None) -> Path:
-        """
-        Get path for catalog draft CSV.
-
-        Args:
-            version: Version string. If None, returns unversioned path.
-        """
+        """Get path for catalog draft CSV."""
         if version:
             return self.catalogs / f"{self.dataset_name}_v{version}_catalog_draft.csv"
         return self.catalogs / f"{self.dataset_name}_catalog_draft.csv"
 
     def get_catalog_path(self, version: str = None) -> Path:
-        """
-        Get path for finalized catalog CSV.
-
-        Args:
-            version: Version string. If None, returns unversioned path.
-        """
+        """Get path for finalized catalog CSV."""
         if version:
             return self.catalogs / f"{self.dataset_name}_v{version}_catalog.csv"
         return self.catalogs / f"{self.dataset_name}_catalog.csv"

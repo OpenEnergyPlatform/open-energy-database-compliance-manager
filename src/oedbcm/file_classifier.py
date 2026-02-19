@@ -120,7 +120,8 @@ class ResourceClassifier:
             self,
             package,
             output_dir: Path = None,
-            version: str = "0.1.0"
+            version: str = "0.1.0",
+            group_mapping: Dict[str, int] = None
     ) -> Dict[str, Any]:
         """
         Classify all resources in a package and create catalog draft + catalog.
@@ -129,9 +130,10 @@ class ResourceClassifier:
             package: DataPackage instance
             output_dir: Output directory for catalog (uses new structure if None)
             version: Version string for catalog files
+            group_mapping: Dict mapping filename to group_number
 
         Returns:
-            Dict with classification results
+            Dict with classification results and paths
         """
         from .paths import get_project_paths
 
@@ -155,6 +157,13 @@ class ResourceClassifier:
                 resource.column_names
             )
 
+            # Get group number from mapping or resource
+            group_num = ''
+            if group_mapping and resource.path.name in group_mapping:
+                group_num = f"group_{group_mapping[resource.path.name]}"
+            elif hasattr(resource, 'group_number') and resource.group_number:
+                group_num = f"group_{resource.group_number}"
+
             classifications.append({
                 'filename': resource.path.name,
                 'path': str(resource.path),
@@ -164,23 +173,28 @@ class ResourceClassifier:
                 'size_mb': round(resource.file_size / (1024 * 1024), 3),
                 'format': resource.file_type.upper(),
                 'encoding': getattr(resource, 'detected_encoding', 'utf-8'),
-                'target_table': '',  # Will be filled manually
+                'target_group': group_num,
                 'notes': ''
             })
 
-        # Create draft catalog with version
-        draft_path = output_dir / f"{package.dataset_name}_v{version}_draft.csv"
-        self._save_catalog_csv(classifications, draft_path)
-
-        # Automatically create catalog copy
+        # Define file paths with version
+        draft_path = output_dir / f"{package.dataset_name}_v{version}_catalog_draft.csv"
         catalog_path = output_dir / f"{package.dataset_name}_v{version}_catalog.csv"
-        self._save_catalog_csv(classifications, catalog_path)
 
-        print(f"✅ Draft catalog created: {draft_path}")
-        print(f"✅ Catalog copy created: {catalog_path}")
-        print(f"   📝 Edit {catalog_path} to:")
-        print(f"      - Verify/change 'type' classification")
-        print(f"      - Set 'target_table' for DATA files")
+        # Save draft (always overwrite)
+        self._save_catalog_csv(classifications, draft_path)
+        print(f"✅ Draft catalog: {draft_path}")
+
+        # Save catalog (only if doesn't exist)
+        if not catalog_path.exists():
+            self._save_catalog_csv(classifications, catalog_path)
+            print(f"✅ Catalog created: {catalog_path}")
+            print(f"   📝 Edit 'type' and 'target_group' columns as needed")
+            catalog_status = "created"
+        else:
+            print(f"⚠️  Catalog exists: {catalog_path}")
+            print(f"   📝 Using existing catalog (not overwritten)")
+            catalog_status = "exists"
 
         # Statistics
         type_counts = {}
@@ -191,6 +205,7 @@ class ResourceClassifier:
         return {
             'draft_path': draft_path,
             'catalog_path': catalog_path,
+            'catalog_status': catalog_status,
             'version': version,
             'total_resources': len(classifications),
             'classifications': classifications,
@@ -202,7 +217,7 @@ class ResourceClassifier:
         fieldnames = [
             'filename', 'type', 'rows', 'columns',
             'size_mb', 'format', 'encoding',
-            'target_table',
+            'target_group',
             'notes'
         ]
 
@@ -223,7 +238,7 @@ class ResourceClassifier:
             catalog_path: Path to catalog CSV
 
         Returns:
-            Dict mapping filename to dict with ResourceType and target_table
+            Dict mapping filename to dict with ResourceType and target_group
         """
         catalog = {}
 
@@ -232,7 +247,7 @@ class ResourceClassifier:
             for row in reader:
                 filename = row['filename']
                 type_str = row['type']
-                target_table = row.get('target_table', '')
+                target_group = row.get('target_group', '')
 
                 # Map string back to Enum
                 try:
@@ -242,7 +257,7 @@ class ResourceClassifier:
 
                 catalog[filename] = {
                     'type': resource_type,
-                    'target_table': target_table
+                    'target_group': target_group
                 }
 
         return catalog
