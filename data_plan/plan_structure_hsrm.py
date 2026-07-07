@@ -85,7 +85,7 @@ def main_planning_workflow(
     print("📋 Step 2a: Creating resource classification catalog...")
     classification_result = planner.create_catalog_draft(
         version=version,
-        auto_assign_groups=True)
+        auto_assign_groups=False)
 
     # Show classification summary
     print(f"\n   Classification breakdown:")
@@ -99,14 +99,13 @@ def main_planning_workflow(
 
     # 🔴 USER INPUT 2: Classifications correct?
     print()
-    print("📝 REVIEW CATALOG")
+    print("📝 REVIEW CATALOG (DATATYPES)")
     print("-" * 80)
     print(f"   Please review: {classification_result['catalog_path']}")
     print(f"   - Check 'type' column (Data, Metadata, Additional Data, etc.)")
-    print(f"   - Verify 'target_table' assignments (auto-filled with groups)")
     print()
 
-    if not ask_user_confirmation("⏸️  All classifications correct?", default = 'n'):
+    if not ask_user_confirmation("⏸️  All datatypes correct?", default = 'n'):
         print("\n⏸️  Please edit the catalog file and re-run the script")
         print(f"   File: {classification_result['catalog_path']}")
         print("=" * 80 + "\n")
@@ -127,6 +126,34 @@ def main_planning_workflow(
     print("🔍 Step 2c: Structure groups assigned")
     print()
 
+    # Assign groups based on structure
+    groups = planner.assign_groups_by_structure()
+
+    # Update catalog file with target_group assignments
+    import csv
+    print(f"   Updating catalog with target_group assignments...")
+    try:
+        updated_rows = []
+        with open(classification_result['catalog_path'], 'r', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            fieldnames = reader.fieldnames
+            for row in reader:
+                filename = row['filename']
+                assigned_group = ""
+                for g_id, files in groups.items():
+                    if filename in files:
+                        assigned_group = f"group_{g_id}"
+                        break
+                row['target_group'] = assigned_group
+                updated_rows.append(row)
+                
+        with open(classification_result['catalog_path'], 'w', newline='', encoding='utf-8') as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(updated_rows)
+    except Exception as e:
+        print(f"   ⚠️ Could not update catalog with target_group: {e}")
+
     # Show group details
     print("   Group assignments:")
     for group_id, files in groups.items():
@@ -138,18 +165,24 @@ def main_planning_workflow(
     print()
 
     # 🔴 USER INPUT 3: Groups correct?
-    print("📊 REVIEW GROUPS")
+    print("📊 REVIEW GROUPS IN CATALOG")
     print("-" * 80)
     print(f"   {len(groups)} groups with identical column structures")
+    print(f"   Please review 'target_group' column in: {classification_result['catalog_path']}")
     print()
 
     if not ask_user_confirmation("⏸️  All group assignments correct?", default = 'y'):
         print("\n⏸️  Group assignment needs manual review")
         print("   Consider:")
-        print("   - Editing catalog 'target_table' column manually")
+        print("   - Editing catalog 'target_group' column manually")
         print("   - Re-running with corrected catalog")
         print("=" * 80 + "\n")
         return None, {}
+    print()
+
+    # Reload the catalog in case user changed 'target_group' manually
+    print(f"   ℹ️  Reloading catalog group assignments...")
+    planner.load_catalog(classification_result['catalog_path'])
     print()
 
     # Step 3: Create structure plan
@@ -175,7 +208,7 @@ def main_planning_workflow(
         print(f"   {file_type}: {file_path}")
 
     print("\n📝 Next steps:")
-    print("   1. Review catalog and set 'target_table' for DATA files:")
+    print("   1. Review catalog and set 'target_group' for DATA files:")
     print(f"      {classification_result['catalog_path']}")
     print("   2. Review and edit grouped structures:")
     print(
@@ -295,7 +328,7 @@ def visualize_existing_plan(yaml_path: Path):
     print(f"\n🎨 Creating visualization from: {yaml_path}")
     plan = StructurePlan.load_yaml(yaml_path)
 
-    visualizer = StructureVisualizer()
+    visualizer = StructureVisualizer(dataset_name = plan.dataset_name)
     output_path = visualizer.visualize_comparison(
         current_structure = plan.current_structure,
         planned_structure = plan.planned_structure,
@@ -311,7 +344,7 @@ if __name__ == "__main__":
     # Example usage - adjust paths as needed
 
     # Configuration
-    dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle")
+    dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle_v0.2")
 
     # Check if dataset exists
     if not dataset_path.exists():
