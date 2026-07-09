@@ -118,8 +118,8 @@ def main_planning_workflow(
     planner.load_catalog(classification_result['catalog_path'])
     print()
 
-    # Step 2b: Analyze only DATA and ADDITIONAL_DATA resources
-    print("🔍 Step 2b: Analyzing DATA and ADDITIONAL_DATA resources...")
+    # Step 2b: Analyze only DATA resources
+    print("🔍 Step 2b: Analyzing DATA resources...")
     package.analyze_all(filter_by_classification = True)
     print()
 

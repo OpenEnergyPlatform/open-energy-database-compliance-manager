@@ -962,7 +962,7 @@ class TransformationPlanner:
             from .file_classifier import ResourceType
             filtered_resources = [
                 r for r in self.package.resources
-                if r.classification in [ResourceType.DATA, ResourceType.ADDITIONAL_DATA]
+                if r.classification in [ResourceType.DATA]
             ]
             if filtered_resources:
                 print(
@@ -979,7 +979,7 @@ class TransformationPlanner:
                         # Apply filter if enabled
                         if filter_by_classification:
                             if resource.classification not in [
-                                ResourceType.DATA, ResourceType.ADDITIONAL_DATA
+                                ResourceType.DATA
                             ]:
                                 continue
                         resource.group_number = group_idx
