@@ -200,12 +200,18 @@ class CSVResource(Resource):
             with open(self.path, 'r', encoding = self.encoding, newline = '') as f:
                 reader = csv.reader(f, delimiter = self.delimiter)
 
-                # Read header
-                self.column_names = next(reader)
-                self.n_columns = len(self.column_names)
+                try:
+                    # Read header
+                    self.column_names = next(reader)
+                    self.n_columns = len(self.column_names)
 
-                # Count data rows
-                self.n_rows = sum(1 for _ in reader)
+                    # Count data rows
+                    self.n_rows = sum(1 for _ in reader)
+                except StopIteration:
+                    # File is completely empty
+                    self.column_names = []
+                    self.n_columns = 0
+                    self.n_rows = 0
 
         except UnicodeDecodeError as e:
             raise UnicodeDecodeError(

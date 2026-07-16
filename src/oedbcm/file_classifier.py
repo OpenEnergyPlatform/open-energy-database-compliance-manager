@@ -100,6 +100,10 @@ class ResourceClassifier:
 
         # 5. Classify by structure (if available)
         if n_rows is not None and n_columns is not None:
+            # Empty files or header-only files
+            if n_rows == 0:
+                return ResourceType.IGNORE
+
             # Very small files are likely metadata
             if n_rows < 20 and n_columns < 5:
                 return ResourceType.METADATA

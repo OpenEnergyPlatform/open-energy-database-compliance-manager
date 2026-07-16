@@ -16,14 +16,14 @@ class ProjectPaths:
 
     data/
       0_raw/                    # Raw input data
-      2_planning/                  # Planning artifacts per dataset
+      1_planning/               # Planning artifacts per dataset
         [DataPackageName]/
           catalogs/             # Resource classification catalogs
           plots/                # Visualizations
           reports/              # Analysis reports
           structure/            # Structure plans (YAML)
           metadata/             # OEMetadata drafts
-      3_results/                # Final transformed data
+      2_results/                # Final transformed data
         [DataPackageName]/
     """
 
