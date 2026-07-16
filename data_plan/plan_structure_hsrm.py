@@ -3,7 +3,7 @@
 Main script for structure planning workflow.
 DataPackage HSRM.
 
-SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut
+SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Luydee> © Reiner Lemoine Institut
 SPDX-FileCopyrightText: 2026 Vismaya Jochem <https://github.com/vismayajochem> © Reiner Lemoine Institut
 SPDX-License-Identifier: MIT
 """

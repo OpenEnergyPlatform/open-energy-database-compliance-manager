@@ -1,3 +1,16 @@
+"""
+SPDX-FileCopyrightText: 2026 Vismaya Jochem <https://github.com/vismayajochem> © Reiner Lemoine Institut
+SPDX-License-Identifier: MIT
+"""
+
+from pathlib import Path
+from oedbcm.planner import TransformationPlanner
+from oedbcm.file_classifier import ResourceType
+from oedbcm.structure_schema import StructurePlan
+from oedbcm.logger import ValidationLogger
+from oedbcm.package import DataPackage
+import sys
+
 
 def ask_user_confirmation(question: str, default: str = 'y') -> bool:
     """
