@@ -1,4 +1,6 @@
 import csv
+import os
+import re
 from pathlib import Path
 from typing import Dict, List, Any
 
@@ -17,6 +19,41 @@ except ImportError:
             if not response: response = default
             if response in valid_responses: return valid_responses[response]
             print("   Please answer 'y' or 'n'")
+
+
+def sanitize_oedb_name(name: str) -> str:
+    """Sanitizes a name to OEDB standards (lowercase, no leading numbers, no special chars except _)."""
+    # 1. Lowercase
+    name = name.lower()
+    # 2. Replace special chars with underscores
+    name = re.sub(r'[^a-z0-9_]', '_', name)
+    # 3. Collapse multiple underscores
+    name = re.sub(r'_+', '_', name)
+    # 4. Remove leading/trailing underscores
+    name = name.strip('_')
+    # 5. No number at the beginning
+    if name and name[0].isdigit():
+        name = "tbl_" + name
+        
+    return name or "merged_table"
+
+
+def suggest_table_name(filenames: List[str], dataset_name: str) -> str:
+    """Suggests a table name based on common prefix of filenames."""
+    if not filenames:
+        return sanitize_oedb_name(dataset_name)
+        
+    stems = [Path(f).stem for f in filenames]
+    # Find the longest common prefix among the files in the group
+    prefix = os.path.commonprefix(stems).strip(' _-')
+    
+    # If the prefix is too short or generic, fallback to the dataset name
+    if len(prefix) < 3:
+        suggestion = f"{dataset_name}_data"
+    else:
+        suggestion = prefix
+        
+    return sanitize_oedb_name(suggestion)
 
 
 class TableMerger:
@@ -69,10 +106,16 @@ class TableMerger:
                     return False
         return True
 
-    def merge_group(self, group_id: str, filenames: List[str], output_dir: Path) -> Dict[str, Any]:
+    def merge_group(self, group_id: str, filenames: List[str], output_dir: Path, output_filename: str = None) -> Dict[str, Any]:
         """Stream-merges files to avoid memory limits and adds provenance column."""
         output_dir.mkdir(parents=True, exist_ok=True)
-        output_path = output_dir / f"{self.package.dataset_name}_{group_id}_merged.csv"
+        
+        if output_filename is None:
+            output_filename = f"{self.package.dataset_name}_{group_id}_merged.csv"
+        if not output_filename.endswith('.csv'):
+            output_filename += '.csv'
+            
+        output_path = output_dir / output_filename
         
         # Get reference headers from the first file
         first_resource = next(r for r in self.package.resources if r.path.name == filenames[0])
@@ -189,19 +232,47 @@ def main_merging_workflow(dataset_path: Path, catalog_path: Path = None):
         
     print("   ✅ All groups validated successfully! Columns match perfectly.")
     
-    # 🔴 USER INPUT 2: Start Merge?
+    # 🏷️ USER INPUT 2: Interactive Naming
+    print("\n🏷️  Step 3: Naming merged tables (OEDB Standard)")
+    print("   Rules: lowercase only, no leading numbers, no special characters.")
+    
+    group_target_names = {}
+    for g_id, files in groups.items():
+        suggestion = suggest_table_name(files, package.dataset_name)
+        
+        print(f"\n   Group: {g_id} ({len(files)} files)")
+        print(f"   Files: {', '.join(files[:3])}" + ("..." if len(files)>3 else ""))
+        
+        while True:
+            choice = input(f"   Enter table name [default={suggestion}]: ").strip()
+            name_to_check = choice if choice else suggestion
+            
+            sanitized = sanitize_oedb_name(name_to_check)
+            if sanitized != name_to_check:
+                print(f"   ⚠️  Name adjusted to fit OEDB standards: '{sanitized}'")
+                if ask_user_confirmation(f"   Use '{sanitized}' instead?", default='y'):
+                    group_target_names[g_id] = sanitized
+                    break
+                else:
+                    print("   Please enter a new name.")
+            else:
+                group_target_names[g_id] = sanitized
+                break
+                
+    # 🔴 USER INPUT 3: Start Merge?
     print()
     if not ask_user_confirmation("⏸️  Start merging data? (This may take a moment for large files)", default='y'):
         print("\n⏹️  Merging aborted.")
         return
         
-    print("\n🚀 Step 3: Merging files...")
+    print("\n🚀 Step 4: Merging files...")
     results_dir = merger.paths.dataset_results
     
     results = []
     for g_id, files in groups.items():
-        print(f"   Merging {g_id}...")
-        result = merger.merge_group(g_id, files, results_dir)
+        target_name = group_target_names[g_id]
+        print(f"   Merging {g_id} into {target_name}.csv ...")
+        result = merger.merge_group(g_id, files, results_dir, f"{target_name}.csv")
         results.append(result)
         print(f"     -> Saved: {result['output_path'].name} ({result['total_rows']} rows)")
         
