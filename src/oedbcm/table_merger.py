@@ -1,3 +1,8 @@
+"""
+SPDX-FileCopyrightText: 2026 Vismaya Jochem <https://github.com/vismayajochem> © Reiner Lemoine Institut,
+SPDX-License-Identifier: MIT
+"""
+
 import csv
 import os
 import re
