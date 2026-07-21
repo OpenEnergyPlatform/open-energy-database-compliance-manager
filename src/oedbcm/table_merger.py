@@ -122,15 +122,44 @@ def main_merging_workflow(dataset_path: Path, catalog_path: Path = None):
     package = DataPackage(dataset_path)
     merger = TableMerger(package)
     
+    print(f"   Raw Data Path:  {dataset_path}")
+    print(f"   Planning Path:  {merger.paths.dataset_plans}")
+    
     # Auto-detect catalog if not provided
     if not catalog_path:
-        catalog_files = list(merger.paths.catalogs.glob(f"{package.dataset_name}_v*_catalog.csv"))
-        if not catalog_files:
-            print("❌ No catalog found! Please run the planning workflow first.")
-            return
-        catalog_path = sorted(catalog_files)[-1]
+        # Relaxed search pattern to reliably find ALL finalized catalog files
+        catalog_files = list(merger.paths.catalogs.glob("*catalog.csv"))
+        catalog_files = [f for f in catalog_files if not f.name.endswith("draft.csv")]
         
-    print(f"   Using catalog: {catalog_path}")
+        if not catalog_files:
+            print(f"❌ No catalog found in {merger.paths.catalogs}! Please run the planning workflow first.")
+            return
+            
+        if len(catalog_files) == 1:
+            catalog_path = catalog_files[0]
+            print(f"   Auto-selected only available catalog: {catalog_path.name}")
+        else:
+            catalog_files = sorted(catalog_files)
+            print("\n📋 Multiple catalogs found. Please select one:")
+            for i, cat_file in enumerate(catalog_files, 1):
+                print(f"   [{i}] {cat_file.name}")
+            
+            while True:
+                choice = input(f"   Select catalog [1-{len(catalog_files)}, default={len(catalog_files)}]: ").strip()
+                if not choice:
+                    catalog_path = catalog_files[-1]
+                    break
+                try:
+                    idx = int(choice)
+                    if 1 <= idx <= len(catalog_files):
+                        catalog_path = catalog_files[idx-1]
+                        break
+                    else:
+                        print("   ❌ Invalid selection.")
+                except ValueError:
+                    print("   ❌ Please enter a valid number.")
+                    
+    print(f"\n   Using catalog: {catalog_path}")
     
     # Get groups
     groups = merger.get_merge_groups(catalog_path)
