@@ -222,17 +222,20 @@ def main_planning_workflow(
         description = "Structure groups for HSRM measurements"
     )
 
-    # Each group is a many-to-one merge plan.  The target YAML may be edited
-    # between runs; save_grouped_structures deliberately leaves existing
-    # target files untouched, so this visualisation reflects those edits.
-    print("🎨 Step 5a: Creating table merge visualizations...")
-    from oedbcm.visualizer import GroupMergeVisualizer
-    merge_visualizer = GroupMergeVisualizer(dataset_name = package.dataset_name)
-    merge_visualizations = merge_visualizer.visualize_grouped_merges(
-        grouped_files, version = version
+    # One overview contains every package resource: grouped DATA resources
+    # flow to their target, one-file groups are marked as kept, and all other
+    # classifications are explicitly shown as not used in a merge.
+    # Existing target YAML files are not overwritten, so manual target_table
+    # and schema edits are picked up when the workflow is run again.
+    print("🎨 Step 5a: Creating complete table merge overview...")
+    from oedbcm.visualizer import DatasetMergeOverviewVisualizer
+    merge_visualizer = DatasetMergeOverviewVisualizer(
+        dataset_name = package.dataset_name
     )
-    for group_number, visual_path in merge_visualizations.items():
-        print(f"   Group {group_number}: {visual_path}")
+    merge_visualization = merge_visualizer.visualize_dataset_merge_overview(
+        package.resources, grouped_files, version = version
+    )
+    print(f"   Merge overview: {merge_visualization}")
     print()
 
     # Step 6: Create OEMetadata drafts

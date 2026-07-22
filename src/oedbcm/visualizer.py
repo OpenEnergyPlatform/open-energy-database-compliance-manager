@@ -468,3 +468,176 @@ class GroupMergeVisualizer:
                 draft_path=paths["draft"], target_path=paths["target"], version=version
             )
         return output_paths
+
+
+class DatasetMergeOverviewVisualizer(GroupMergeVisualizer):
+    """One-page overview of all resources and their planned merge status.
+
+    Every package resource is listed in the left-hand column.  DATA resources
+    belonging to a structure group point to their group's planned target;
+    groups containing one source are labelled ``kept``.  Other classifications
+    are explicitly shown as ``not used in merge``.
+    """
+
+    STATUS_COLORS = {
+        "merged": "#2E86AB",
+        "kept": "#378A68",
+        "not_used": "#8B98A5",
+        "unassigned": "#C87800",
+    }
+
+    @staticmethod
+    def _resource_as_dict(resource: Any) -> Dict[str, Any]:
+        """Accept both Resource objects from DataPackage and YAML dictionaries."""
+        if isinstance(resource, dict):
+            return resource
+        classification = getattr(resource, "classification", None)
+        if hasattr(classification, "value"):
+            classification = classification.value
+        path = getattr(resource, "path", None)
+        return {
+            "name": path.name if path is not None else getattr(resource, "name", "unknown"),
+            "classification": classification or "Unclassified",
+            "rows": getattr(resource, "n_rows", 0) or 0,
+            "columns": getattr(resource, "n_columns", 0) or 0,
+        }
+
+    def visualize_dataset_merge_overview(
+            self,
+            resources: List[Any],
+            grouped_files: Dict[int, Dict[str, Any]],
+            version: Optional[str] = None,
+    ) -> Path:
+        """Draw one complete source-to-planned-target merge overview."""
+        import yaml
+
+        # Map every file belonging to a saved group to the group's planned
+        # target.  Target YAML is read so user edits (especially target_table)
+        # are picked up on a subsequent run.
+        file_to_group: Dict[str, int] = {}
+        targets: Dict[int, Dict[str, Any]] = {}
+        for group_number, paths in sorted(grouped_files.items()):
+            with open(paths["draft"], "r", encoding="utf-8") as stream:
+                draft = yaml.safe_load(stream) or {}
+            with open(paths["target"], "r", encoding="utf-8") as stream:
+                target = yaml.safe_load(stream) or {}
+            draft_structure = draft.get("structure", {})
+            target_structure = target.get("structure", {})
+            group_sources = draft_structure.get("resources", [])
+            for source in group_sources:
+                file_to_group[source.get("name")] = group_number
+            targets[group_number] = {
+                "name": target_structure.get("target_table") or f"group_{group_number}_merged",
+                "source_count": len(group_sources),
+                "column_count": len(target_structure.get("columns", [])),
+                "group_name": target_structure.get("group_name", f"Group {group_number}"),
+            }
+
+        normalised_resources = [self._resource_as_dict(resource) for resource in resources]
+
+        def sort_key(resource: Dict[str, Any]):
+            group = file_to_group.get(resource.get("name"))
+            # Grouped files are deliberately adjacent so their flows are easy
+            # to scan.  Unused/unassigned files appear afterwards.
+            return (0, group, resource.get("name", "")) if group is not None else (1, 0, resource.get("name", ""))
+
+        normalised_resources.sort(key=sort_key)
+        resource_count = max(len(normalised_resources), 1)
+        fig_height = max(9, 2.8 + resource_count * 0.47)
+        fig, ax = plt.subplots(figsize=(18, fig_height))
+        fig.patch.set_facecolor(self.COLORS["background"])
+        ax.set_facecolor(self.COLORS["background"])
+        ax.set_xlim(0, 1)
+        ax.set_ylim(-0.6, resource_count + 1.8)
+        ax.axis("off")
+
+        ax.text(0.035, resource_count + 0.75, "ALL EXISTING RESOURCES", fontsize=13,
+                fontweight="bold", color=self.COLORS["text"])
+        ax.text(0.695, resource_count + 0.75, "PLANNED USE", fontsize=13,
+                fontweight="bold", color=self.COLORS["text"])
+        ax.text(0.5, resource_count + 1.18, f"{self.dataset_name} — resource merge plan",
+                ha="center", fontsize=19, fontweight="bold", color=self.COLORS["text"])
+
+        source_x, source_w, source_h = 0.03, 0.47, 0.34
+        resource_positions: Dict[str, float] = {}
+        grouped_positions: Dict[int, List[float]] = {}
+        unused_count = 0
+        for index, resource in enumerate(normalised_resources):
+            y = resource_count - index - 0.02
+            name = resource.get("name", f"resource_{index + 1}")
+            group_number = file_to_group.get(name)
+            classification = str(resource.get("classification") or "Unclassified")
+            if group_number is not None:
+                source_count = targets[group_number]["source_count"]
+                status = "MERGED" if source_count > 1 else "KEPT"
+                color = self.STATUS_COLORS["merged" if source_count > 1 else "kept"]
+                grouped_positions.setdefault(group_number, []).append(y)
+            elif classification.lower() not in {"data", "unclassified", "none", ""}:
+                # Additional Data, Metadata, Ignore and Not Supported Yet are
+                # intentionally all shown, but have no merge target.
+                status = "NOT USED IN MERGE"
+                color = self.STATUS_COLORS["not_used"]
+                unused_count += 1
+            else:
+                status = "NOT ASSIGNED TO A GROUP"
+                color = self.STATUS_COLORS["unassigned"]
+
+            box = FancyBboxPatch(
+                (source_x, y - source_h / 2), source_w, source_h,
+                boxstyle="round,pad=0.009,rounding_size=0.012", facecolor="white",
+                edgecolor=color, linewidth=1.5, zorder=3,
+            )
+            ax.add_patch(box)
+            label = f"{name}\n{classification}  •  {resource.get('rows', 0):,} rows  •  {resource.get('columns', 0)} cols"
+            ax.text(source_x + 0.012, y, label, ha="left", va="center", fontsize=7.7,
+                    color=self.COLORS["text"], zorder=4)
+            ax.text(source_x + source_w - 0.012, y, status, ha="right", va="center",
+                    fontsize=7.3, color=color, fontweight="bold", zorder=4)
+            resource_positions[name] = y
+
+        # Place each target next to the vertical centre of its sources.  This
+        # avoids a global field row and makes each merge relationship clear.
+        target_x, target_w = 0.70, 0.25
+        for group_number, target in targets.items():
+            positions = grouped_positions.get(group_number, [])
+            if not positions:
+                continue
+            target_y = (min(positions) + max(positions)) / 2
+            is_merge = target["source_count"] > 1
+            color = self.STATUS_COLORS["merged" if is_merge else "kept"]
+            action = "MERGED TARGET" if is_merge else "KEPT AS-IS"
+            target_h = 0.68 if is_merge else 0.58
+            box = FancyBboxPatch(
+                (target_x, target_y - target_h / 2), target_w, target_h,
+                boxstyle="round,pad=0.012,rounding_size=0.016", facecolor=color,
+                edgecolor="white", linewidth=1.4, zorder=3,
+            )
+            ax.add_patch(box)
+            label = (
+                f"{self._short_name(target['name'], 29)}\n{action} • {target['source_count']} source "
+                f"{'tables' if target['source_count'] != 1 else 'table'} • {target['column_count']} cols"
+            )
+            ax.text(target_x + target_w / 2, target_y, label, ha="center", va="center",
+                    fontsize=8.5, color="white", fontweight="bold", zorder=4)
+            for source_y in positions:
+                ax.add_patch(FancyArrowPatch(
+                    (source_x + source_w, source_y), (target_x, target_y),
+                    arrowstyle="-|>", mutation_scale=11, linewidth=1.25,
+                    color=color, alpha=0.55, connectionstyle="arc3,rad=0.035", zorder=2,
+                ))
+
+        ax.text(0.70, 0.15, f"{unused_count} resources are explicitly excluded from merge planning",
+                fontsize=8.5, color=self.COLORS["text"], ha="left")
+        legend = [
+            mpatches.Patch(facecolor=self.STATUS_COLORS["merged"], label="Merged with other group resources"),
+            mpatches.Patch(facecolor=self.STATUS_COLORS["kept"], label="Kept as one-table group"),
+            mpatches.Patch(facecolor=self.STATUS_COLORS["not_used"], label="Not used (Additional Data / Metadata / Ignore)"),
+            mpatches.Patch(facecolor=self.STATUS_COLORS["unassigned"], label="Unassigned DATA resource"),
+        ]
+        fig.legend(handles=legend, loc="lower center", bbox_to_anchor=(0.5, 0.01),
+                   ncol=2, frameon=False, fontsize=9)
+        fig.tight_layout(rect=(0, 0.045, 1, 0.96))
+        output_path = self.output_dir / f"{self.dataset_name}_v{version or 'unknown'}_merge_overview.png"
+        fig.savefig(output_path, dpi=180, bbox_inches="tight", facecolor=self.COLORS["background"])
+        plt.close(fig)
+        return output_path
