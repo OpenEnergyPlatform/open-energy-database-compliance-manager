@@ -280,3 +280,191 @@ class StructureVisualizer:
             frameon = False,
             fontsize = 10
         )
+
+
+class GroupMergeVisualizer:
+    """Visualize how the source files in one structure group form one target table.
+
+    The visualizer reads the ``*_draft.yaml`` and ``*_target.yaml`` files made
+    by :meth:`TransformationPlanner.save_grouped_structures`.  A group is a
+    many-to-one transformation: its source ``resources`` are shown on the
+    left and the target group's planned table is shown on the right.
+
+    ``structure.target_table`` is optional.  If it is not present, the output
+    is deliberately named ``group_<number>_merged`` to make clear that it is a
+    planned, conceptual merge rather than an already existing resource.
+    """
+
+    COLORS = {
+        "background": "#F7F9FB",
+        "source": "#2E86AB",
+        "target": "#7B3F98",
+        "flow": "#4C6A85",
+        "border": "#CAD3DC",
+        "text": "#233342",
+        "ok": "#1B8A5A",
+        "changed": "#C87800",
+    }
+
+    def __init__(self, dataset_name: str, output_dir: Optional[Path] = None):
+        if not dataset_name:
+            raise ValueError("dataset_name must be provided")
+        self.dataset_name = dataset_name
+        if output_dir is None:
+            from .paths import get_project_paths
+            output_dir = get_project_paths(dataset_name).plots
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _normalise_column_name(name: Any) -> str:
+        """Normalise names so ``Time [s]`` and ``time`` compare equal."""
+        import re
+        value = str(name or "").lower()
+        value = re.sub(r"\s*\[[^]]*\]\s*", "", value)
+        return re.sub(r"[^a-z0-9]+", "", value)
+
+    @staticmethod
+    def _field_names(resource: Dict[str, Any]) -> List[str]:
+        fields = resource.get("schema", {}).get("fields", resource.get("fields", []))
+        return [field.get("name", "") for field in fields if field.get("name")]
+
+    @staticmethod
+    def _short_name(name: str, width: int = 34) -> str:
+        import textwrap
+        return "\n".join(textwrap.wrap(name, width=width, break_long_words=False)[:2])
+
+    def visualize_group_merge(
+            self,
+            draft_path: Path,
+            target_path: Path,
+            version: Optional[str] = None,
+    ) -> Path:
+        """Create one source-to-target merge diagram from a draft/target pair."""
+        import yaml
+
+        with open(draft_path, "r", encoding="utf-8") as stream:
+            draft = yaml.safe_load(stream) or {}
+        with open(target_path, "r", encoding="utf-8") as stream:
+            target = yaml.safe_load(stream) or {}
+
+        current = draft.get("structure", {})
+        planned = target.get("structure", {})
+        metadata = target.get("metadata", draft.get("metadata", {}))
+        sources = current.get("resources", [])
+        group_number = metadata.get("group_number", current.get("group_number", "?"))
+        group_name = planned.get("group_name", current.get("group_name", f"Group {group_number}"))
+        target_name = planned.get("target_table") or f"group_{group_number}_merged"
+
+        source_columns = {
+            self._normalise_column_name(field)
+            for resource in sources for field in self._field_names(resource)
+        }
+        # A manually edited target may expose its schema either as `columns`
+        # or as a single resource schema.  Both forms are supported.
+        planned_columns = planned.get("columns", [])
+        if not planned_columns and planned.get("resources"):
+            planned_columns = [
+                field for resource in planned["resources"]
+                for field in self._field_names(resource)
+            ]
+        target_columns = {self._normalise_column_name(field) for field in planned_columns}
+        added = target_columns - source_columns
+        removed = source_columns - target_columns
+        rows = sum(int(resource.get("rows") or 0) for resource in sources)
+
+        count = max(len(sources), 1)
+        fig_height = max(6.5, 2.7 + count * 1.05)
+        fig, ax = plt.subplots(figsize=(15, fig_height))
+        fig.patch.set_facecolor(self.COLORS["background"])
+        ax.set_facecolor(self.COLORS["background"])
+        ax.set_xlim(0, 1)
+        ax.set_ylim(-0.5, count + 1.3)
+        ax.axis("off")
+
+        ax.text(0.08, count + 0.72, "CURRENT TABLES", fontsize=13, fontweight="bold",
+                color=self.COLORS["text"])
+        ax.text(0.67, count + 0.72, "PLANNED TABLE", fontsize=13, fontweight="bold",
+                color=self.COLORS["text"])
+        ax.text(0.5, count + 1.05,
+                f"Merge plan — {group_name} (group {group_number})",
+                ha="center", fontsize=18, fontweight="bold", color=self.COLORS["text"])
+
+        source_x, source_w, source_h = 0.06, 0.38, 0.64
+        y_positions = []
+        for index, resource in enumerate(sources):
+            y = count - index - 0.05
+            y_positions.append(y)
+            name = resource.get("name", f"source_{index + 1}")
+            fields = self._field_names(resource)
+            label = (
+                f"{self._short_name(name)}\n"
+                f"{resource.get('classification', 'Unclassified')}  •  "
+                f"{resource.get('rows', 0):,} rows  •  {len(fields) or resource.get('columns', 0)} columns"
+            )
+            box = FancyBboxPatch(
+                (source_x, y - source_h / 2), source_w, source_h,
+                boxstyle="round,pad=0.015,rounding_size=0.02",
+                facecolor=self.COLORS["source"], edgecolor="white", linewidth=1.3,
+                alpha=0.96, zorder=3,
+            )
+            ax.add_patch(box)
+            ax.text(source_x + 0.018, y, label, ha="left", va="center", fontsize=9,
+                    color="white", fontweight="medium", zorder=4)
+
+        target_y = (min(y_positions) + max(y_positions)) / 2 if y_positions else count / 2
+        target_x, target_w = 0.64, 0.30
+        status = "Schema preserved" if not added and not removed else "Schema changes planned"
+        detail_color = self.COLORS["ok"] if status == "Schema preserved" else self.COLORS["changed"]
+        target_label = (
+            f"{self._short_name(target_name, 30)}\n"
+            f"MERGED TARGET • {len(sources)} source tables\n"
+            f"{rows:,} total source rows • {len(target_columns)} planned columns\n"
+            f"{status}: +{len(added)} / −{len(removed)} columns"
+        )
+        target_h = max(1.34, min(2.1, 1.05 + 0.06 * (len(added) + len(removed))))
+        target_box = FancyBboxPatch(
+            (target_x, target_y - target_h / 2), target_w, target_h,
+            boxstyle="round,pad=0.02,rounding_size=0.025",
+            facecolor=self.COLORS["target"], edgecolor="white", linewidth=1.6,
+            alpha=0.97, zorder=3,
+        )
+        ax.add_patch(target_box)
+        ax.text(target_x + target_w / 2, target_y + 0.08, target_label,
+                ha="center", va="center", fontsize=10, color="white", fontweight="bold", zorder=4)
+        ax.text(target_x + target_w / 2, target_y - target_h / 2 + 0.12,
+                "● " + status, ha="center", va="center", fontsize=8.5,
+                color=detail_color, fontweight="bold", zorder=4)
+
+        for y in y_positions:
+            arrow = FancyArrowPatch(
+                (source_x + source_w, y), (target_x, target_y),
+                arrowstyle="-|>", mutation_scale=13, linewidth=1.8,
+                color=self.COLORS["flow"], alpha=0.56,
+                connectionstyle="arc3,rad=0.05", zorder=2,
+            )
+            ax.add_patch(arrow)
+
+        fig.text(0.5, 0.02,
+                 "Each arrow denotes a source table assigned to this structure group. "
+                 "The right-hand card is the planned merged table.",
+                 ha="center", fontsize=9, color=self.COLORS["text"])
+        fig.tight_layout(rect=(0, 0.045, 1, 0.96))
+        version = version or metadata.get("version", "unknown")
+        output_path = self.output_dir / (
+            f"{self.dataset_name}_v{version}_group_{group_number}_merge_plan.png"
+        )
+        fig.savefig(output_path, dpi=220, bbox_inches="tight", facecolor=self.COLORS["background"])
+        plt.close(fig)
+        return output_path
+
+    def visualize_grouped_merges(
+            self, grouped_files: Dict[int, Dict[str, Any]], version: Optional[str] = None
+    ) -> Dict[int, Path]:
+        """Render a separate readable merge diagram for every saved group."""
+        output_paths = {}
+        for group_number, paths in sorted(grouped_files.items()):
+            output_paths[group_number] = self.visualize_group_merge(
+                draft_path=paths["draft"], target_path=paths["target"], version=version
+            )
+        return output_paths

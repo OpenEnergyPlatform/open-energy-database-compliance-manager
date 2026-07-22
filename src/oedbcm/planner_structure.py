@@ -190,11 +190,12 @@ def main_planning_workflow(
     print(f"   Plan version: {plan.version}")
     print(f"   Current resources: {len(plan.current_structure['resources'])}\n")
 
-    # Step 4: Save plan (YAML + visualization)
+    # Step 4: Save the dataset-level YAML.  The merge visualisation is
+    # created after the group draft/target files have been written in step 5.
     print("💾 Step 4: Saving plan...")
     output_files = planner.save_complete_plan(
         plan = plan,
-        create_visualization = True
+        create_visualization = False
     )
 
     print("\n✅ Planning workflow complete!")
@@ -220,6 +221,18 @@ def main_planning_workflow(
         version = version,
         description = "Structure groups for HSRM measurements"
     )
+
+    # Each group is a many-to-one merge plan.  The target YAML may be edited
+    # between runs; save_grouped_structures deliberately leaves existing
+    # target files untouched, so this visualisation reflects those edits.
+    print("🎨 Step 5a: Creating table merge visualizations...")
+    from oedbcm.visualizer import GroupMergeVisualizer
+    merge_visualizer = GroupMergeVisualizer(dataset_name = package.dataset_name)
+    merge_visualizations = merge_visualizer.visualize_grouped_merges(
+        grouped_files, version = version
+    )
+    for group_number, visual_path in merge_visualizations.items():
+        print(f"   Group {group_number}: {visual_path}")
     print()
 
     # Step 6: Create OEMetadata drafts
