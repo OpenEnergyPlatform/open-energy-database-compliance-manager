@@ -1,3 +1,11 @@
+"""Open Energy Database Compliance Manager
+
+Data validation functions for CSV resources.
+
+SPDX-FileCopyrightText: 2026 <YOUR NAME> © Reiner Lemoine Institut
+SPDX-License-Identifier: MIT
+"""
+
 """Functions for validating the content of CSV files."""
 
 import csv
