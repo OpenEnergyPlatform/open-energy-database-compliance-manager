@@ -35,7 +35,7 @@ SPDX-License-Identifier = "CC0-1.0"
 SPDX-FileComment = "OEMetadata-2.0.2 licensed CC0-1.0"
 
 [[annotations]]
-path = ".test/test_data/"
+path = "test/test_data/*"
 precedence = "override"
-SPDX-FileCopyrightText = ["2023 Ludwig Hülk <https://github.com/Ludee> © Reiner Lemoine Institut", "super-repo <https://github.com/rl-institut/super-repo>"]
+SPDX-FileCopyrightText = ["2023 Ludwig Hülk https://github.com/Ludee © Reiner Lemoine Institut","super-repo https://github.com/rl-institut/super-repo"]
 SPDX-License-Identifier = "CC0-1.0"
