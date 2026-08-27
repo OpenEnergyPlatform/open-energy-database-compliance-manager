@@ -32,8 +32,11 @@ for resource in package.resources:
     duplicates = validator.check_duplicates(resource)
     statistics = validator.calculate_statistics(resource)
 
-    validator.plot_histograms(resource)
-    validator.plot_boxplots(resource)
+    answer = input("\nDo you want to generate plots for this resource? (y/n): ").strip().lower()
+    if answer in {"yes", "y"}:
+
+        validator.plot_histograms(resource)
+        validator.plot_boxplots(resource)
 
     # Outliers
     outliers = validator.detect_outliers(resource)

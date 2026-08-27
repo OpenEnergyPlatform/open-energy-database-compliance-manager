@@ -162,3 +162,6 @@ __pycache__/
 *.egg-info/
 dist/
 build/
+
+#Generated Plots 
+test/test_data/plots/
