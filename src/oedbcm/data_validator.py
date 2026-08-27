@@ -2,7 +2,8 @@
 
 Data validation functions for CSV resources.
 
-SPDX-FileCopyrightText: 2026 <YOUR NAME> © Reiner Lemoine Institut
+SPDX-FileCopyrightText: 2026 Ludwig Hülk <https://github.com/Luydee> © Reiner Lemoine Institut
+SPDX-FileCopyrightText: 2026 Tomi Nguyen <https://github.com/tomi-rli> © Reiner Lemoine Institut
 SPDX-License-Identifier: MIT
 """
 
