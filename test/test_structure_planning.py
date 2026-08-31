@@ -91,16 +91,18 @@ class TestStructurePlan:
         with tempfile.TemporaryDirectory() as tmpdir:
             plan = StructurePlan("test_dataset", version = "0.2.0")
             plan.set_current_structure('Test', [{'name': 'file.csv', 'fields': []}])
-
+            print(plan.to_dict())
             # Save
             yaml_path = Path(tmpdir) / "test_plan.yaml"
+            # Fehler: Es wird kein kein einzelnen path-Objekt, sondern ein Dictionary zurückgegeben: 
             saved_path = plan.save_yaml(yaml_path)
-
-            assert saved_path.exists()
+            assert saved_path["current"].exists()
+            assert saved_path["planned"].exists()
 
             # Load
-            loaded_plan = StructurePlan.load_yaml(saved_path)
-
+            loaded_plan = StructurePlan.load_yaml(saved_path["current"])
+            print(loaded_plan.to_dict())
+            print(saved_path["current"].read_text())
             assert loaded_plan.dataset_name == "test_dataset"
             assert loaded_plan.version == "0.2.0"
             assert loaded_plan.current_structure['name'] == 'Test'
@@ -130,13 +132,14 @@ class TestStructureVisualizer:
     def test_visualizer_init(self):
         """Test visualizer initialization."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            viz = StructureVisualizer(output_dir = Path(tmpdir))
+            viz = StructureVisualizer(output_dir = Path(tmpdir), 
+            dataset_name="test_dataset")
             assert viz.output_dir.exists()
 
     def test_create_visualization(self):
         """Test creating a visualization."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            viz = StructureVisualizer(output_dir = Path(tmpdir))
+            viz = StructureVisualizer(output_dir = Path(tmpdir), dataset_name="test_dataset")
 
             current = {
                 'name': 'Dataset',

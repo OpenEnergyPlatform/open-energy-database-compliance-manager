@@ -161,27 +161,37 @@ class StructurePlan:
             target_dir.mkdir(parents = True, exist_ok = True)
             current_path = target_dir / f"{self.dataset_name}_v{self.version}_structure_current.yaml"
             planned_path = target_dir / f"{self.dataset_name}_v{self.version}_structure_plan.yaml"
-
+        data = self.to_dict()
+        current_data = {
+            "metadata": data['metadata'],
+            "current_structure": self.current_structure,
+            "planned_structure": {},
+            "resource_mapping": [],
+        }
+        planned_data = {
+            "metadata": data["metadata"],
+            "current_structure": {},
+            "planned_structure": self.planned_structure,
+            "resource_mapping": []
+        }
         # Speichern unter Verwendung der vorhandenen Datenstruktur
         # (Da _prepare_for_export fehlt, nutzen wir direkt die dicts)
         with open(current_path, 'w', encoding = 'utf-8') as f:
             yaml.dump(
-                self.current_structure,
+                current_data,
                 f,
                 default_flow_style = False,
                 allow_unicode = True,
                 sort_keys = False
             )
-
         with open(planned_path, 'w', encoding = 'utf-8') as f:
             yaml.dump(
-                self.planned_structure,
+                planned_data,
                 f,
                 default_flow_style = False,
                 allow_unicode = True,
                 sort_keys = False
             )
-
         print(f"✅ Current structure saved: {current_path}")
         print(f"✅ Planned structure saved: {planned_path}")
 
