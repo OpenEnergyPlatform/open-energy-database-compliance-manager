@@ -15,7 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
+- Add `DataValidator` for CSV data validation, including missing values, duplicate rows, descriptive statistics and timestamp checks.
+- Add histogram and boxplot visualizations for numeric columns.
+- Add IQR-based outlier detection using `Q1 - 1.5 * IQR` and `Q3 + 1.5 * IQR` as lower and upper bounds.
+- Add optional plot generation via a user prompt.
 ### Changed
 - Update README and documentation [(#97)](https://github.com/rl-institut/super-repo/pull/97)
 

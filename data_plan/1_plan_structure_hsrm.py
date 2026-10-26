@@ -23,7 +23,7 @@ if __name__ == "__main__":
     # Example usage - adjust paths as needed
 
     # Configuration
-    dataset_path = Path("data/0_raw/HSRM_Messdaten_Brennstoffzelle_v0.1")
+    dataset_path = Path("test/test_data")
 
     # Check if dataset exists
     if not dataset_path.exists():

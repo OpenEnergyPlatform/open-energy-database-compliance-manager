@@ -1,3 +1,8 @@
+<!--
+SPDX-FileCopyrightText: 2026 Ludwig Hülk https://github.com/Ludee © Reiner Lemoine Institut
+SPDX-FileCopyrightText: 2026 Tomi Nguyen https://github.com/tomi-rli © Reiner Lemoine Institut
+SPDX-License-Identifier: MIT
+-->
 # Open Energy Database Compliance Manager - Planning Guide
 
 **3-Phase Workflow for OEP Dataset Preparation**
@@ -7,12 +12,15 @@
 ## 🎯 Overview
 
 ### Phase 0: Raw Data 📦
+
 `data/0_raw/(dataset)/` - Original files, never modified
 
 ### Phase 1+2: Analysis & Planning 🔍
+
 `data/2_planning/(dataset)/` - Classification, structure plans, metadata
 
 ### Phase 3: Results ✅  
+
 `data/3_results/(dataset)/` - Transformed OEP-compliant tables
 
 ---
@@ -75,6 +83,7 @@ result = planner.create_catalog_draft()
 **📝 Manual Step:** Edit `*_draft.csv` → Save as `*_catalog.csv`
 
 **Classification Types:**
+
 - `Data` - Tables to upload (18 files)
 - `Metadata` - Descriptive info (3 files)
 - `Additional Data` - Supporting info (2 files)
@@ -105,6 +114,7 @@ plan = planner.create_structure_plan(
 ```
 
 **Auto-extracted fields:**
+
 ```yaml
 fields:
   - name: temperature              # ✅ Standardized
@@ -117,6 +127,7 @@ fields:
 ```
 
 **Extraction patterns:**
+
 - `Temperature [°C]` → unit: `°C`
 - `Pressure (bar)` → unit: `bar`
 - `voltage_V` → unit: `V`
@@ -181,6 +192,7 @@ output_files = planner.save_complete_plan(
 **Input column:** `Temperature [°C]`
 
 **Output:**
+
 ```yaml
 name: temperature
 type: number
@@ -189,6 +201,7 @@ unit: °C
 ```
 
 **Supported patterns:**
+
 - `[unit]` - Square brackets
 - `(unit)` - Parentheses
 - `_in_unit` - Underscore notation
@@ -197,6 +210,7 @@ unit: °C
 ### Structure Grouping
 
 Identical structures → Same group:
+
 ```yaml
 - name: measurements_Q1.csv
   group_number: 1
@@ -296,11 +310,13 @@ builder.create_all_drafts(
 ## 🆘 Troubleshooting
 
 **Missing fields in YAML:**
+
 ```
 fields:
   - name: temperature
     type: unknown  # ❌ Bad
 ```
+
 **Fix:** Ensure `analyze_all()` called before `create_structure_plan()`
 
 **No merged structure:**  
@@ -313,6 +329,6 @@ fields:
 
 ## 📚 References
 
-- **OEMetadata Spec:** https://github.com/OpenEnergyPlatform/oemetadata
-- **OEP Upload Guide:** https://openenergy-platform.org/
-- **Project Repo:** https://github.com/ludee/open-energy-database-compliance-manager
+- **OEMetadata Spec:** <https://github.com/OpenEnergyPlatform/oemetadata>
+- **OEP Upload Guide:** <https://openenergy-platform.org/>
+- **Project Repo:** <https://github.com/ludee/open-energy-database-compliance-manager>
